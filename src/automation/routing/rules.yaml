@@ -1,0 +1,231 @@
+defaultTeam: support-team
+
+rules:
+  - name: critical-infrastructure-issues
+    priority: 100
+    conditions:
+      - field: category
+        operator: equals
+        value: infrastructure
+      - field: severity
+        operator: equals
+        value: critical
+    action:
+      assignTo: infra-team
+      escalationChain:
+        - infra-oncall
+        - infra-lead
+        - engineering-director
+      escalationTimeoutHours: 1
+
+  - name: enterprise-critical-bugs
+    priority: 95
+    conditions:
+      - field: category
+        operator: equals
+        value: bug
+      - field: severity
+        operator: equals
+        value: critical
+      - field: customerTier
+        operator: equals
+        value: enterprise
+    action:
+      assignTo: senior-engineering-team
+      escalationChain:
+        - senior-engineer-oncall
+        - engineering-lead
+        - vp-engineering
+      escalationTimeoutHours: 2
+
+  - name: high-severity-bugs
+    priority: 80
+    conditions:
+      - field: category
+        operator: equals
+        value: bug
+      - field: severity
+        operator: equals
+        value: high
+    action:
+      assignTo: engineering-team
+      escalationChain:
+        - engineer-oncall
+        - engineering-lead
+      escalationTimeoutHours: 4
+
+  - name: authentication-issues
+    priority: 75
+    conditions:
+      - field: title
+        operator: contains
+        value: login
+    action:
+      assignTo: identity-team
+      escalationChain:
+        - identity-oncall
+        - identity-lead
+      escalationTimeoutHours: 4
+
+  - name: api-related-tickets
+    priority: 70
+    conditions:
+      - field: description
+        operator: contains
+        value: api
+    action:
+      assignTo: platform-team
+      escalationChain:
+        - platform-oncall
+        - platform-lead
+      escalationTimeoutHours: 6
+
+  - name: billing-inquiries
+    priority: 65
+    conditions:
+      - field: category
+        operator: equals
+        value: user-error
+      - field: description
+        operator: contains
+        value: billing
+    action:
+      assignTo: billing-team
+      escalationChain:
+        - billing-specialist
+        - billing-lead
+      escalationTimeoutHours: 8
+
+  - name: feature-requests
+    priority: 40
+    conditions:
+      - field: category
+        operator: equals
+        value: feature-request
+    action:
+      assignTo: product-team
+      escalationChain:
+        - product-manager
+        - product-director
+      escalationTimeoutHours: 48
+
+  - name: documentation-gaps
+    priority: 35
+    conditions:
+      - field: category
+        operator: equals
+        value: documentation-gap
+    action:
+      assignTo: docs-team
+      escalationChain:
+        - technical-writer
+        - docs-lead
+      escalationTimeoutHours: 24
+
+  - name: off-hours-critical
+    priority: 90
+    conditions:
+      - field: severity
+        operator: equals
+        value: critical
+      - field: hour
+        operator: greaterThan
+        value: 18
+    action:
+      assignTo: oncall-team
+      escalationChain:
+        - oncall-primary
+        - oncall-secondary
+        - engineering-director
+      escalationTimeoutHours: 1
+
+  - name: enterprise-user-errors
+    priority: 60
+    conditions:
+      - field: category
+        operator: equals
+        value: user-error
+      - field: customerTier
+        operator: equals
+        value: enterprise
+    action:
+      assignTo: enterprise-support-team
+      escalationChain:
+        - enterprise-support-lead
+        - customer-success-manager
+      escalationTimeoutHours: 4
+
+escalationPolicies:
+  default:
+    chain:
+      - tier2-support
+      - tier3-engineering
+      - engineering-lead
+    timeoutHours: 4
+    notifyOnEscalation: true
+  critical:
+    chain:
+      - oncall-primary
+      - oncall-secondary
+      - engineering-director
+      - vp-engineering
+    timeoutHours: 1
+    notifyOnEscalation: true
+  enterprise:
+    chain:
+      - enterprise-support
+      - senior-engineer
+      - engineering-lead
+      - vp-engineering
+    timeoutHours: 2
+    notifyOnEscalation: true
+
+teamMembers:
+  - id: tm-001
+    name: Alice Chen
+    team: engineering-team
+    currentTicketCount: 3
+    maxTickets: 8
+    availability: true
+  - id: tm-002
+    name: Bob Smith
+    team: engineering-team
+    currentTicketCount: 5
+    maxTickets: 8
+    availability: true
+  - id: tm-003
+    name: Carol Davis
+    team: infra-team
+    currentTicketCount: 2
+    maxTickets: 6
+    availability: true
+  - id: tm-004
+    name: Dave Wilson
+    team: identity-team
+    currentTicketCount: 4
+    maxTickets: 7
+    availability: true
+  - id: tm-005
+    name: Eve Martinez
+    team: platform-team
+    currentTicketCount: 1
+    maxTickets: 8
+    availability: true
+  - id: tm-006
+    name: Frank Lee
+    team: support-team
+    currentTicketCount: 6
+    maxTickets: 10
+    availability: true
+  - id: tm-007
+    name: Grace Kim
+    team: docs-team
+    currentTicketCount: 2
+    maxTickets: 5
+    availability: true
+  - id: tm-008
+    name: Henry Nguyen
+    team: billing-team
+    currentTicketCount: 3
+    maxTickets: 6
+    availability: true
