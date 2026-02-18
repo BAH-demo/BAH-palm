@@ -1,22 +1,16 @@
 import {
-  AnthropicSource,
   AuditedSource,
-  AzureOpenAISource,
-  BedrockSource,
-  GeminiSource,
-  OpenAiSource,
   AiProviderUsageTracker,
 } from './sources';
 
 import buildProvider from '@/features/shared/dal/buildProvider';
 import {
   AzureOpenAiConfig,
-  BedrockConfig,
-  OpenAiConfig,
-  AnthropicConfig,
-  GeminiConfig,
   Provider,
   AiProviderType,
+  GenericConfig,
+  providerIdFromTypeId,
+  configToRecord,
 } from '@/features/shared/types';
 import db from '@/server/db';
 import { Model } from '@/features/shared/types/model';
@@ -24,6 +18,9 @@ import logger from '@/server/logger';
 import getSystemConfig from '@/features/shared/dal/getSystemConfig';
 import { AiRepository } from './sources/types';
 import { getConfig } from '@/server/config';
+import { ProviderRegistry } from './registry';
+import { UniversalAiSdkAdapter } from './sources/universal-adapter';
+import { OpenAiDeepResearchAdapter } from './sources/extensions/openai-deep-research';
 
 // Once the AIProvider model is in place, we may want to change this to:
 //   type AiRepositoryConfig = Omit<AiProvider, 'id'>;
@@ -74,11 +71,18 @@ export class AIFactory {
     });
 
     let provider = await buildProvider(db, result.aiProvider);
-    if (provider.typeId === AiProviderType.AzureOpenAi) {
-      // override empty Provider.deploymentId with model's externalId
-      const azureConfig = provider.config as AzureOpenAiConfig;
-      if (!azureConfig.deploymentId) {
-        azureConfig.deploymentId = result.externalId;
+    const resolvedPid = provider.providerId || providerIdFromTypeId(provider.typeId);
+    if (resolvedPid === 'azure-openai') {
+      if ((provider.config as GenericConfig).type === 'generic') {
+        const cfg = provider.config as GenericConfig;
+        if (!cfg['deploymentId']) {
+          cfg['deploymentId'] = result.externalId;
+        }
+      } else {
+        const azureConfig = provider.config as AzureOpenAiConfig;
+        if (!azureConfig.deploymentId) {
+          azureConfig.deploymentId = result.externalId;
+        }
       }
     }
 
@@ -133,41 +137,34 @@ export class AIFactory {
   }
 
   private buildClient(provider: Provider): AiRepository {
-    switch (provider.configTypeId) {
-      case AiProviderType.OpenAi: {
-        const cfg = provider.config as OpenAiConfig;
-        return new OpenAiSource(cfg.apiKey);
-      }
-      case AiProviderType.AzureOpenAi: {
-        const cfg = provider.config as AzureOpenAiConfig;
-        return new AzureOpenAISource(
-          cfg.apiKey,
-          cfg.apiEndpoint,
-          cfg.deploymentId,
-        );
-      }
-      case AiProviderType.Anthropic: {
-        const cfg = provider.config as AnthropicConfig;
-        return new AnthropicSource(cfg.apiKey);
-      }
-      case AiProviderType.Gemini: {
-        const cfg = provider.config as GeminiConfig;
-        return new GeminiSource(cfg.apiKey);
-      }
-      case AiProviderType.Bedrock: {
-        let cfg = provider.config as BedrockConfig;
+    const resolvedProviderId = provider.providerId || providerIdFromTypeId(provider.typeId);
+    const configRecord = configToRecord(provider.config);
 
-        if (!cfg.accessKeyId || !cfg.secretAccessKey) {
-          const config = getConfig();
-          cfg = { ...config.bedrock, type: AiProviderType.Bedrock };
-        }
-
-        return new BedrockSource(cfg);
+    if (resolvedProviderId === 'bedrock' && (!configRecord['accessKeyId'] || !configRecord['secretAccessKey'])) {
+      const envConfig = getConfig();
+      configRecord['accessKeyId'] = envConfig.bedrock.accessKeyId;
+      configRecord['secretAccessKey'] = envConfig.bedrock.secretAccessKey;
+      if (envConfig.bedrock.sessionToken) {
+        configRecord['sessionToken'] = envConfig.bedrock.sessionToken;
       }
-      default:
-        logger.error(`Unsupported provider type: ${provider.configTypeId}`);
-        throw new Error('Unsupported provider type');
+      if (envConfig.bedrock.region) {
+        configRecord['region'] = envConfig.bedrock.region;
+      }
     }
+
+    const definition = ProviderRegistry.get(resolvedProviderId);
+    if (!definition) {
+      logger.error(`Unsupported provider: ${resolvedProviderId}`);
+      throw new Error('Unsupported provider type');
+    }
+
+    const sdkProvider = definition.sdkFactory(configRecord) as any;
+
+    if (resolvedProviderId === 'openai' && configRecord['apiKey']) {
+      return new OpenAiDeepResearchAdapter(sdkProvider, configRecord['apiKey']);
+    }
+
+    return new UniversalAiSdkAdapter(sdkProvider, resolvedProviderId);
   }
 
   protected async wrapAudit(

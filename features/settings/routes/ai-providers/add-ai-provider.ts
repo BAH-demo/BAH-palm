@@ -3,29 +3,27 @@ import { procedure } from '@/server/trpc';
 import { UserRole } from '@/features/shared/types/user';
 import { BadRequest, Unauthorized } from '@/features/shared/errors/routeErrors';
 import {
-  newAzureOpenAiConfig,
-  newOpenAiConfig,
-  newAnthropicConfig,
-  newGeminiConfig,
   AiProviderType,
-  ProviderConfig,
   hasApiEndpoint,
-  newBedrockConfig,
   isBedrockConfig,
+  providerIdFromTypeId,
 } from '@/features/shared/types';
 import createProvider from '@/features/settings/dal/ai-providers/createProvider';
 import { TOKEN_COST_RATE } from '@/features/shared/utils';
+import { ProviderRegistry } from '@/features/ai-provider/registry';
 
-// Based on AiProviderFormValues
 const inputSchema = z.object({
   label: z.string(),
-  type: z.nativeEnum(AiProviderType),
-  apiKey: z.string(),
-  apiEndpoint: z.string(),
-  accessKeyId: z.string(),
-  secretAccessKey: z.string(),
-  sessionToken: z.string(),
-  region: z.string(),
+  type: z.nativeEnum(AiProviderType).optional(),
+  providerId: z.string().optional(),
+  apiKey: z.string().optional().default(''),
+  apiEndpoint: z.string().optional().default(''),
+  accessKeyId: z.string().optional().default(''),
+  secretAccessKey: z.string().optional().default(''),
+  sessionToken: z.string().optional().default(''),
+  region: z.string().optional().default(''),
+  baseURL: z.string().optional().default(''),
+  orgKey: z.string().optional().default(''),
   inputCostPerMillionTokens: z.number().optional(),
   outputCostPerMillionTokens: z.number().optional(),
 });
@@ -33,7 +31,8 @@ const inputSchema = z.object({
 const outputSchema = z.object({
   provider: z.object({
     id: z.string(),
-    typeId: z.nativeEnum(AiProviderType),
+    providerId: z.string().optional(),
+    typeId: z.nativeEnum(AiProviderType).optional(),
     label: z.string(),
     config: z.object({
       id: z.string(),
@@ -51,41 +50,44 @@ export default procedure
   .input(inputSchema)
   .output(outputSchema)
   .mutation(async ({ ctx, input }) => {
-    // Check if user has permission to add AI provider
     if (ctx.userRole !== UserRole.Admin) {
       throw Unauthorized('You do not have permission to add an AI provider');
     }
 
-    // Build the correct kind of provider config based on the config type
-    let config = null;
-    switch (input.type) {
-      case AiProviderType.OpenAi:
-        config = newOpenAiConfig(input.apiKey, '');
-        break;
+    const resolvedProviderId = input.providerId || (input.type ? providerIdFromTypeId(input.type) : '');
+    if (!resolvedProviderId) {
+      throw BadRequest('Either providerId or type must be specified');
+    }
 
-      case AiProviderType.AzureOpenAi:
-        config = newAzureOpenAiConfig(input.apiKey, input.apiEndpoint, '');
-        break;
+    const configRecord: Record<string, string> = {};
+    if (input.apiKey) {
+      configRecord['apiKey'] = input.apiKey;
+    }
+    if (input.orgKey) {
+      configRecord['orgKey'] = input.orgKey;
+    }
+    if (input.apiEndpoint) {
+      configRecord['apiEndpoint'] = input.apiEndpoint;
+    }
+    if (input.baseURL) {
+      configRecord['baseURL'] = input.baseURL;
+    }
+    if (input.accessKeyId) {
+      configRecord['accessKeyId'] = input.accessKeyId;
+    }
+    if (input.secretAccessKey) {
+      configRecord['secretAccessKey'] = input.secretAccessKey;
+    }
+    if (input.sessionToken) {
+      configRecord['sessionToken'] = input.sessionToken;
+    }
+    if (input.region) {
+      configRecord['region'] = input.region;
+    }
 
-      case AiProviderType.Anthropic:
-        config = newAnthropicConfig(input.apiKey);
-        break;
-
-      case AiProviderType.Gemini:
-        config = newGeminiConfig(input.apiKey);
-        break;
-
-      case AiProviderType.Bedrock:
-        config = newBedrockConfig(
-          input.accessKeyId,
-          input.secretAccessKey,
-          input.region,
-          input.sessionToken,
-        );
-        break;
-
-      default:
-        throw BadRequest(`Unsupported AI provider id: ${input.type}`);
+    const def = ProviderRegistry.get(resolvedProviderId);
+    if (!def) {
+      throw BadRequest(`Unknown provider: ${resolvedProviderId}`);
     }
 
     const costPerInputToken = input.inputCostPerMillionTokens ? input.inputCostPerMillionTokens / TOKEN_COST_RATE : undefined;
@@ -93,15 +95,16 @@ export default procedure
 
     const provider = await createProvider({
       label: input.label,
-      type: input.type,
-      config: config as Exclude<ProviderConfig, 'id'>,
-      costPerInputToken: costPerInputToken,
-      costPerOutputToken: costPerOutputToken,
+      providerId: resolvedProviderId,
+      config: configRecord,
+      costPerInputToken,
+      costPerOutputToken,
     });
 
     const output: z.infer<typeof outputSchema> = {
       provider: {
         id: provider.id,
+        providerId: provider.providerId,
         typeId: provider.typeId,
         label: provider.label,
         config: {

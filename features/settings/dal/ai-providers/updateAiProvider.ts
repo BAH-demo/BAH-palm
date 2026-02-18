@@ -1,9 +1,10 @@
 import logger from '@/server/logger';
 import db from '@/server/db';
-import { AiProviderType, Provider, ProviderConfig } from '@/features/shared/types';
+import { Prisma } from '@prisma/client';
+import { AiProviderType, Provider, ProviderConfig, providerIdFromTypeId } from '@/features/shared/types';
 
 type UpdateAiProviderInput = {
-  id: string; // UUID of AI provider
+  id: string;
   label: string;
   costPerInputToken?: number;
   costPerOutputToken?: number;
@@ -18,7 +19,6 @@ type UpdateAiProviderInput = {
 export default async function updateAiProvider(input: UpdateAiProviderInput): Promise<Provider> {
   return db.$transaction(async (tx): Promise<Provider> => {
 
-    // Get the original AI provider so the unenforced foreign key is retrieved
     let aiProvider;
 
     try {
@@ -30,6 +30,7 @@ export default async function updateAiProvider(input: UpdateAiProviderInput): Pr
         select: {
           id: true,
           label: true,
+          providerId: true,
           aiProviderTypeId: true,
           apiConfigId: true,
           deletedAt: true,
@@ -51,33 +52,6 @@ export default async function updateAiProvider(input: UpdateAiProviderInput): Pr
       throw new Error('AI Provider is deleted and cannot be updated.');
     }
 
-    // There's no way of telling what fields are being updated.
-    // This type allows us to dynamically build the data to update
-    // the DB with based on whether or not secret values are provided
-    // and what config fields the aiProvider requires.
-    type UpdateProviderApiConfig = {
-      apiKey?: string;
-      accessKeyId?: string;
-      secretAccessKey?: string;
-      sessionToken?: string;
-      apiEndpoint?: string;
-      region?: string;
-    }
-
-    const newApiConfig: UpdateProviderApiConfig = {};
-    const secretFields: (keyof UpdateProviderApiConfig)[] = [
-      'apiKey',
-      'accessKeyId',
-      'secretAccessKey',
-      'sessionToken',
-    ];
-
-    secretFields.forEach((field) => {
-      if (input[field] && input[field].trim().length > 0) {
-        newApiConfig[field] = input[field];
-      }
-    });
-
     try {
       const updatedProvider = await tx.aiProvider.update({
         where: { id: aiProvider.id, deletedAt: null },
@@ -88,134 +62,54 @@ export default async function updateAiProvider(input: UpdateAiProviderInput): Pr
         },
       });
 
-      // Only handles AI providers with 'editable' configurations.
+      const existingConfig = await tx.apiConfig.findUnique({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+      });
+
       let updatedConfig: ProviderConfig;
 
-      switch (aiProvider.aiProviderTypeId) {
-        case AiProviderType.OpenAi: {
-          const updatedOpenAiConfig = await tx.apiConfigOpenAi.update({
-            where: {
-              id: aiProvider.apiConfigId, deletedAt: null,
-            },
-            data: newApiConfig,
-          });
+      if (existingConfig) {
+        const currentConfigData = existingConfig.config as Record<string, string>;
+        const updatedConfigData = { ...currentConfigData };
 
-          if (!updatedOpenAiConfig) {
-            logger.warn('OpenAI provider config not found', { providerId: aiProvider.id, configId: aiProvider.apiConfigId });
-            throw new Error('OpenAI provider config not found');
+        const fieldsToUpdate: Record<string, string> = {
+          apiKey: input.apiKey,
+          accessKeyId: input.accessKeyId,
+          secretAccessKey: input.secretAccessKey,
+          sessionToken: input.sessionToken,
+          apiEndpoint: input.apiEndpoint,
+          region: input.region,
+        };
+
+        for (const [key, value] of Object.entries(fieldsToUpdate)) {
+          if (value && value.trim().length > 0) {
+            updatedConfigData[key] = value;
           }
-
-          updatedConfig = {
-            id: updatedOpenAiConfig.id,
-            type: AiProviderType.OpenAi,
-            apiKey: updatedOpenAiConfig.apiKey,
-            orgKey: updatedOpenAiConfig.orgKey,
-          };
-
-          break;
         }
-        case AiProviderType.AzureOpenAi: {
-          newApiConfig.apiEndpoint = input.apiEndpoint;
 
-          const updatedAzureConfig = await tx.apiConfigAzureOpenAi.update({
-            where: {
-              id: aiProvider.apiConfigId, deletedAt: null,
-            },
-            data: newApiConfig,
-          });
+        const result = await tx.apiConfig.update({
+          where: { id: existingConfig.id, deletedAt: null },
+          data: { config: updatedConfigData },
+        });
 
-          if (!updatedAzureConfig) {
-            logger.warn('Azure OpenAI provider config not found', { providerId: aiProvider.id, configId: aiProvider.apiConfigId });
-            throw new Error('Azure OpenAI provider config not found');
-          }
-
-          updatedConfig = {
-            id: updatedAzureConfig.id,
-            type: AiProviderType.AzureOpenAi,
-            apiKey: updatedAzureConfig.apiKey,
-            apiEndpoint: updatedAzureConfig.apiEndpoint,
-            deploymentId: updatedAzureConfig.deploymentId,
-          };
-
-          break;
-        }
-        case AiProviderType.Anthropic: {
-          const updatedAnthropicConfig = await tx.apiConfigAnthropic.update({
-            where: {
-              id: aiProvider.apiConfigId, deletedAt: null,
-            },
-            data: newApiConfig,
-          });
-
-          if (!updatedAnthropicConfig) {
-            logger.warn('Anthropic provider config not found', { providerId: aiProvider.id, configId: aiProvider.apiConfigId });
-            throw new Error('Anthropic provider config not found');
-          }
-
-          updatedConfig = {
-            id: updatedAnthropicConfig.id,
-            type: AiProviderType.Anthropic,
-            apiKey: updatedAnthropicConfig.apiKey,
-          };
-
-          break;
-        }
-        case AiProviderType.Gemini: {
-          const updatedGeminiConfig = await tx.apiConfigGemini.update({
-            where: {
-              id: aiProvider.apiConfigId, deletedAt: null,
-            },
-            data: newApiConfig,
-          });
-
-          if (!updatedGeminiConfig) {
-            logger.warn('Gemini provider config not found', { providerId: aiProvider.id, configId: aiProvider.apiConfigId });
-            throw new Error('Gemini provider config not found');
-          }
-
-          updatedConfig = {
-            id: updatedGeminiConfig.id,
-            type: AiProviderType.Gemini,
-            apiKey: updatedGeminiConfig.apiKey,
-          };
-
-          break;
-        }
-        case AiProviderType.Bedrock: {
-          newApiConfig.region = input.region;
-
-          const updatedBedrockConfig = await tx.apiConfigBedrock.update({
-            where: {
-              id: aiProvider.apiConfigId, deletedAt: null,
-            },
-            data: newApiConfig,
-          });
-
-          if (!updatedBedrockConfig) {
-            logger.warn('Bedrock provider config not found', { providerId: aiProvider.id, configId: aiProvider.apiConfigId });
-            throw new Error('Bedrock provider config not found');
-          }
-
-          updatedConfig = {
-            id: updatedBedrockConfig.id,
-            type: AiProviderType.Bedrock,
-            accessKeyId: updatedBedrockConfig.accessKeyId,
-            secretAccessKey: updatedBedrockConfig.secretAccessKey,
-            sessionToken: updatedBedrockConfig.sessionToken,
-            region: updatedBedrockConfig.region,
-          };
-          break;
-        }
-        default:
-          logger.warn(`Unsupported AI provider: ${AiProviderType[aiProvider.aiProviderTypeId]}`);
-          throw new Error('Unsupported AI provider');
+        updatedConfig = {
+          id: result.id,
+          type: 'generic' as const,
+          providerId: result.providerId,
+          ...(result.config as Record<string, string>),
+        };
+      } else {
+        updatedConfig = await updateLegacyConfig(tx, aiProvider, input);
       }
+
+      const resolvedProviderId = aiProvider.providerId || providerIdFromTypeId(aiProvider.aiProviderTypeId);
 
       return {
         id: updatedProvider.id,
+        providerId: resolvedProviderId,
         typeId: updatedProvider.aiProviderTypeId,
         label: updatedProvider.label,
-        configTypeId: updatedConfig.type,
+        configTypeId: updatedProvider.aiProviderTypeId,
         costPerInputToken: updatedProvider.costPerInputToken,
         costPerOutputToken: updatedProvider.costPerOutputToken,
         config: updatedConfig,
@@ -227,4 +121,63 @@ export default async function updateAiProvider(input: UpdateAiProviderInput): Pr
       throw new Error('Error updating AI provider configuration');
     }
   });
+}
+
+async function updateLegacyConfig(
+  tx: Prisma.TransactionClient,
+  aiProvider: { id: string; aiProviderTypeId: AiProviderType; apiConfigId: string },
+  input: UpdateAiProviderInput,
+): Promise<ProviderConfig> {
+  const newApiConfig: Record<string, string> = {};
+  const secretFields = ['apiKey', 'accessKeyId', 'secretAccessKey', 'sessionToken'] as const;
+
+  secretFields.forEach((field) => {
+    const value = input[field];
+    if (value && value.trim().length > 0) {
+      newApiConfig[field] = value;
+    }
+  });
+
+  switch (aiProvider.aiProviderTypeId) {
+    case AiProviderType.OpenAi: {
+      const result = await tx.apiConfigOpenAi.update({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+        data: newApiConfig,
+      });
+      return { id: result.id, type: AiProviderType.OpenAi, apiKey: result.apiKey, orgKey: result.orgKey };
+    }
+    case AiProviderType.AzureOpenAi: {
+      newApiConfig['apiEndpoint'] = input.apiEndpoint;
+      const result = await tx.apiConfigAzureOpenAi.update({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+        data: newApiConfig,
+      });
+      return { id: result.id, type: AiProviderType.AzureOpenAi, apiKey: result.apiKey, apiEndpoint: result.apiEndpoint, deploymentId: result.deploymentId };
+    }
+    case AiProviderType.Anthropic: {
+      const result = await tx.apiConfigAnthropic.update({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+        data: newApiConfig,
+      });
+      return { id: result.id, type: AiProviderType.Anthropic, apiKey: result.apiKey };
+    }
+    case AiProviderType.Gemini: {
+      const result = await tx.apiConfigGemini.update({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+        data: newApiConfig,
+      });
+      return { id: result.id, type: AiProviderType.Gemini, apiKey: result.apiKey };
+    }
+    case AiProviderType.Bedrock: {
+      newApiConfig['region'] = input.region;
+      const result = await tx.apiConfigBedrock.update({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+        data: newApiConfig,
+      });
+      return { id: result.id, type: AiProviderType.Bedrock, accessKeyId: result.accessKeyId, secretAccessKey: result.secretAccessKey, sessionToken: result.sessionToken, region: result.region };
+    }
+    default:
+      logger.warn(`Unsupported AI provider type: ${aiProvider.aiProviderTypeId}`);
+      throw new Error('Unsupported AI provider');
+  }
 }

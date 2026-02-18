@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SelectOption, generateConditionalSchema } from './forms';
 
+/** @deprecated Use providerId string instead. Kept for migration compatibility. */
 export enum AiProviderType {
   OpenAi = 1,
   AzureOpenAi = 2,
@@ -9,6 +10,7 @@ export enum AiProviderType {
   Gemini = 6,
 }
 
+/** @deprecated Use ProviderRegistry.getAllAsSelectOptions() instead */
 export const AiProviderLabels: Record<AiProviderType, string> = {
   [AiProviderType.OpenAi]: 'OpenAI',
   [AiProviderType.AzureOpenAi]: 'Azure OpenAI',
@@ -17,6 +19,7 @@ export const AiProviderLabels: Record<AiProviderType, string> = {
   [AiProviderType.Gemini]: 'Gemini',
 };
 
+/** @deprecated Use ProviderRegistry.getAllAsSelectOptions() instead */
 export const AiProvidersSelectInputOptions: SelectOption[] = Object.entries(
   AiProviderLabels,
 )
@@ -41,6 +44,32 @@ const baseAiProviderSchema = z.object({
     .optional(),
 });
 
+export const newProviderFormSchema = z.object({
+  providerId: z.string().min(1, 'A provider is required'),
+  label: z.string().min(1, 'A label is required'),
+  inputCostPerMillionTokens: z
+    .number()
+    .gte(0, 'Input token cost cannot be less than $0.00')
+    .lte(1000, 'Input token cost should not exceed $1,000.00')
+    .optional(),
+  outputCostPerMillionTokens: z
+    .number()
+    .gte(0, 'Output token cost cannot be less than $0.00')
+    .lte(1000, 'Output token cost should not exceed $1,000.00')
+    .optional(),
+  apiKey: z.string().optional(),
+  orgKey: z.string().optional(),
+  apiEndpoint: z.string().optional(),
+  deploymentId: z.string().optional(),
+  accessKeyId: z.string().optional(),
+  secretAccessKey: z.string().optional(),
+  sessionToken: z.string().optional(),
+  region: z.string().optional(),
+  baseURL: z.string().optional(),
+});
+
+export type NewProviderFormValues = z.infer<typeof newProviderFormSchema>;
+
 export const generateConditionalAiProviderSchema = (
   aiProvider: SelectOption,
 ) => {
@@ -58,6 +87,7 @@ export type ModelFormValues = z.infer<typeof modelSchema>;
 
 export type Provider = {
   id: string;
+  providerId: string;
   typeId: AiProviderType;
   label: string;
   configTypeId: AiProviderType;
@@ -70,6 +100,12 @@ export type Provider = {
 
 export type AvailableProvider = Omit<Provider, 'config' | 'configTypeId'>;
 
+export type UnifiedConfig = {
+  id: string;
+  providerId: string;
+  config: Record<string, string>;
+};
+
 export type ProviderConfig = {
   id: string;
 } & (
@@ -77,8 +113,15 @@ export type ProviderConfig = {
     AzureOpenAiConfig |
     AnthropicConfig |
     GeminiConfig |
-    BedrockConfig
+    BedrockConfig |
+    GenericConfig
   );
+
+export type GenericConfig = {
+  type: 'generic';
+  providerId: string;
+  [key: string]: string;
+};
 
 export type OpenAiConfig = {
   type: AiProviderType.OpenAi;
@@ -171,4 +214,31 @@ export function hasApiEndpoint(config: any): config is ConfigWithApiEndpoint {
 
 export function isBedrockConfig(config: any): config is BedrockConfig {
   return 'region' in config;
+}
+
+export function providerIdFromTypeId(typeId: AiProviderType | number): string {
+  const map: Record<number, string> = {
+    [AiProviderType.OpenAi]: 'openai',
+    [AiProviderType.AzureOpenAi]: 'azure-openai',
+    [AiProviderType.Bedrock]: 'bedrock',
+    [AiProviderType.Anthropic]: 'anthropic',
+    [AiProviderType.Gemini]: 'gemini',
+  };
+
+  return map[Number(typeId)] ?? '';
+}
+
+export function configToRecord(config: ProviderConfig): Record<string, string> {
+  if ((config as GenericConfig).type === 'generic') {
+    const { id, type, providerId, ...rest } = config as GenericConfig & { id: string };
+    return rest;
+  }
+
+  const record: Record<string, string> = {};
+  const { id: _id, type: _type, ...rest } = config as Record<string, unknown>;
+  for (const [key, value] of Object.entries(rest)) {
+    if (value === undefined || value === null) continue;
+    record[key] = String(value);
+  }
+  return record;
 }

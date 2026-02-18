@@ -26,6 +26,8 @@ import getUserGroupsAsLead from './user-groups/get-user-groups-as-lead';
 import createUserGroupMembership from './user-groups/create-user-group-membership';
 import getUserGroupMemberships from './user-groups/get-user-group-memberships';
 import testModelStatus from './ai-providers/test-model-status';
+import testConnection from './ai-providers/test-connection';
+import discoverModels from './ai-providers/discover-models';
 import getUserGroupAiProviders from './user-groups/get-user-group-ai-providers';
 import updateUserGroupAiProviders from './user-groups/update-user-group-ai-providers';
 import getUserGroupKbProviders from './user-groups/get-user-group-kb-providers';
@@ -89,6 +91,8 @@ export default router({
   getUserGroupAiProviders,
   updateUserGroupAiProviders,
   testModelStatus,
+  testConnection,
+  discoverModels,
   getUsageRecords,
   updateUserRole,
   updateUserGroupMemberRole,
