@@ -237,7 +237,9 @@ export function configToRecord(config: ProviderConfig): Record<string, string> {
   const record: Record<string, string> = {};
   const { id: _id, type: _type, ...rest } = config as Record<string, unknown>;
   for (const [key, value] of Object.entries(rest)) {
-    if (value === undefined || value === null) continue;
+    if (value === undefined || value === null) {
+      continue;
+    }
     record[key] = String(value);
   }
   return record;

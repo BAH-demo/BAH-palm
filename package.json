@@ -18,6 +18,7 @@
     "seed": "ts-node prisma/seed"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^1.1.6",
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/google": "^1.2.22",
     "@ai-sdk/openai": "^1.2.3",

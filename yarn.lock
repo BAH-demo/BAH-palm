@@ -7,6 +7,15 @@
   resolved "https://registry.npmjs.org/@adobe/css-tools/-/css-tools-4.4.2.tgz"
   integrity sha512-baYZExFpsdkBNuvGKTKWCwKH57HRZLVtycZS05WTQNVOiXVSeAki3nU35zlRbToeMW8aHlJfyS+1C4BOv27q0A==
 
+"@ai-sdk/amazon-bedrock@^1.1.6":
+  version "1.1.6"
+  resolved "https://registry.npmjs.org/@ai-sdk/amazon-bedrock/-/amazon-bedrock-1.1.6.tgz"
+  integrity sha512-h6SJWpku+i8OsSz0A4RT2g2uD+3E0SUgWHsWRIpxmPNgM1DnH6lgSby5sxqAZDY5xJyJtRFW5vB9G3GEBjHy/g==
+  dependencies:
+    "@ai-sdk/provider" "1.0.7"
+    "@ai-sdk/provider-utils" "2.1.6"
+    "@aws-sdk/client-bedrock-runtime" "^3.663.0"
+
 "@ai-sdk/anthropic@^1.2.12":
   version "1.2.12"
   resolved "https://registry.npmjs.org/@ai-sdk/anthropic/-/anthropic-1.2.12.tgz"
@@ -41,6 +50,16 @@
     nanoid "^3.3.8"
     secure-json-parse "^2.7.0"
 
+"@ai-sdk/provider-utils@2.1.6":
+  version "2.1.6"
+  resolved "https://registry.npmjs.org/@ai-sdk/provider-utils/-/provider-utils-2.1.6.tgz"
+  integrity sha512-Pfyaj0QZS22qyVn5Iz7IXcJ8nKIKlu2MeSAdKJzTwkAks7zdLaKVB+396Rqcp1bfQnxl7vaduQVMQiXUrgK8Gw==
+  dependencies:
+    "@ai-sdk/provider" "1.0.7"
+    eventsource-parser "^3.0.0"
+    nanoid "^3.3.8"
+    secure-json-parse "^2.7.0"
+
 "@ai-sdk/provider-utils@2.2.8":
   version "2.2.8"
   resolved "https://registry.npmjs.org/@ai-sdk/provider-utils/-/provider-utils-2.2.8.tgz"
@@ -54,6 +73,13 @@
   version "1.0.10"
   resolved "https://registry.npmjs.org/@ai-sdk/provider/-/provider-1.0.10.tgz"
   integrity sha512-pco8Zl9U0xwXI+nCLc0woMtxbvjU8hRmGTseAUiPHFLYAAL8trRPCukg69IDeinOvIeo1SmXxAIdWWPZOLb4Cg==
+  dependencies:
+    json-schema "^0.4.0"
+
+"@ai-sdk/provider@1.0.7":
+  version "1.0.7"
+  resolved "https://registry.npmjs.org/@ai-sdk/provider/-/provider-1.0.7.tgz"
+  integrity sha512-q1PJEZ0qD9rVR+8JFEd01/QM++csMT5UVwYXSN2u54BrVw/D8TZLTeg2FEfKK00DgAx0UtWd8XOhhwITP9BT5g==
   dependencies:
     json-schema "^0.4.0"
 
@@ -290,7 +316,7 @@
     "@smithy/util-utf8" "^4.0.0"
     tslib "^2.6.2"
 
-"@aws-sdk/client-bedrock-runtime@^3.705.0":
+"@aws-sdk/client-bedrock-runtime@^3.663.0", "@aws-sdk/client-bedrock-runtime@^3.705.0":
   version "3.804.0"
   resolved "https://registry.npmjs.org/@aws-sdk/client-bedrock-runtime/-/client-bedrock-runtime-3.804.0.tgz"
   integrity sha512-xO5iQoYf2e5HL7PSSVEVNCpAYb4SICAOQHRB3fWlLi2ZyDgH21Te2Z3YEkCHRAkp7nJbSasWKY3pVJ2sjlEwPQ==

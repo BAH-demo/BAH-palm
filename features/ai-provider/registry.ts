@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import logger from '@/server/logger';
 
 export type ProviderCategory = 'openai-compatible' | 'anthropic-compatible' | 'google-compatible' | 'bedrock';
@@ -137,15 +138,11 @@ registerBuiltIn({
   supportsEmbeddings: true,
   sdkFactory: (config) => {
     const parsed = bedrockConfigSchema.parse(config);
-    return createOpenAI({
-      apiKey: 'bedrock',
-      baseURL: `https://bedrock-runtime.${parsed.region}.amazonaws.com`,
-      compatibility: 'compatible',
-      headers: {
-        'X-Amz-Access-Key': parsed.accessKeyId,
-        'X-Amz-Secret-Key': parsed.secretAccessKey,
-        ...(parsed.sessionToken ? { 'X-Amz-Security-Token': parsed.sessionToken } : {}),
-      },
+    return createAmazonBedrock({
+      region: parsed.region,
+      accessKeyId: parsed.accessKeyId,
+      secretAccessKey: parsed.secretAccessKey,
+      ...(parsed.sessionToken ? { sessionToken: parsed.sessionToken } : {}),
     });
   },
 });
