@@ -1,5 +1,6 @@
 import logger from '@/server/logger';
 import db from '@/server/db';
+import { Prisma } from '@prisma/client';
 import { AiProviderType } from '@/features/shared/types';
 
 export default async function deleteAiProvider(providerId: string) {
@@ -23,49 +24,26 @@ export default async function deleteAiProvider(providerId: string) {
     }
 
     try {
-      switch (aiProvider.aiProviderTypeId) {
-        case AiProviderType.OpenAi:
-          await prisma.apiConfigOpenAi.update({
-            where: { id: aiProvider.apiConfigId, deletedAt: null },
-            data: { deletedAt: new Date() },
-          });
-          break;
-        case AiProviderType.AzureOpenAi:
-          await prisma.apiConfigAzureOpenAi.update({
-            where: { id: aiProvider.apiConfigId, deletedAt: null },
-            data: { deletedAt: new Date() },
-          });
-          break;
-        case AiProviderType.Anthropic:
-          await prisma.apiConfigAnthropic.update({
-            where: { id: aiProvider.apiConfigId, deletedAt: null },
-            data: { deletedAt: new Date() },
-          });
-          break;
-        case AiProviderType.Gemini:
-          await prisma.apiConfigGemini.update({
-            where: { id: aiProvider.apiConfigId, deletedAt: null },
-            data: { deletedAt: new Date() },
-          });
-          break;
-        case AiProviderType.Bedrock:
-          await prisma.apiConfigBedrock.update({
-            where: { id: aiProvider.apiConfigId, deletedAt: null },
-            data: { deletedAt: new Date() },
-          });
-          break;
-        default:
-          logger.warn('AI Provider could not be retrieved');
-          throw new Error('AI Provider could not be retrieved');
+      const now = new Date();
+
+      const unifiedConfig = await prisma.apiConfig.findUnique({
+        where: { id: aiProvider.apiConfigId, deletedAt: null },
+      });
+
+      if (unifiedConfig) {
+        await prisma.apiConfig.update({
+          where: { id: aiProvider.apiConfigId, deletedAt: null },
+          data: { deletedAt: now },
+        });
+      } else {
+        await softDeleteLegacyConfig(prisma, aiProvider.aiProviderTypeId, aiProvider.apiConfigId, now);
       }
 
-      // Get the models related to the AI provider that haven't already been deleted
       const affectedModels = await prisma.model.findMany({
         where: { aiProviderId: providerId, deletedAt: null },
         select: { id: true },
       });
 
-      // Set model to null in Chats that use the affected Models
       const affectedChatRecords = await prisma.chat.findMany({
         where: {
           modelId: { in: affectedModels.map(model => model.id) },
@@ -80,15 +58,14 @@ export default async function deleteAiProvider(providerId: string) {
         data: { modelId: null },
       });
 
-      // Soft delete Models associated with the provider
       await prisma.model.updateMany({
         where: { aiProviderId: providerId, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: now },
       });
 
       const deletedProvider = await prisma.aiProvider.update({
         where: { id: providerId, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: now },
       });
 
       return { id: deletedProvider.id };
@@ -99,4 +76,47 @@ export default async function deleteAiProvider(providerId: string) {
     }
 
   });
+}
+
+async function softDeleteLegacyConfig(
+  prisma: Prisma.TransactionClient,
+  typeId: AiProviderType,
+  configId: string,
+  now: Date,
+): Promise<void> {
+  switch (typeId) {
+    case AiProviderType.OpenAi:
+      await prisma.apiConfigOpenAi.update({
+        where: { id: configId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      return;
+    case AiProviderType.AzureOpenAi:
+      await prisma.apiConfigAzureOpenAi.update({
+        where: { id: configId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      return;
+    case AiProviderType.Anthropic:
+      await prisma.apiConfigAnthropic.update({
+        where: { id: configId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      return;
+    case AiProviderType.Gemini:
+      await prisma.apiConfigGemini.update({
+        where: { id: configId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      return;
+    case AiProviderType.Bedrock:
+      await prisma.apiConfigBedrock.update({
+        where: { id: configId, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      return;
+    default:
+      logger.warn('AI Provider could not be retrieved');
+      throw new Error('AI Provider could not be retrieved');
+  }
 }

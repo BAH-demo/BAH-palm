@@ -132,9 +132,10 @@ model LogEntry {
 model AiProvider {
   id                 String            @id @default(uuid()) @db.Uuid
   label              String            @default("Unlabeled AI Provider")
-  aiProviderTypeId   Int // Represents the type of AI used by the provider
-  apiConfigType      Int
-  apiConfigId        String            @db.Uuid // Unenforced foreign key for API config
+  providerId         String            @default("") // Registry provider ID (e.g., "openai", "anthropic")
+  aiProviderTypeId   Int               @default(0) // @deprecated - kept for migration compatibility
+  apiConfigType      Int               @default(0) // @deprecated - kept for migration compatibility
+  apiConfigId        String            @db.Uuid // Unenforced foreign key for API config (legacy or new ApiConfig)
   costPerInputToken  Float             @default(0)
   costPerOutputToken Float             @default(0)
   models             Model[]
@@ -161,6 +162,14 @@ model Model {
   @@index(aiProviderId)
 }
 
+model ApiConfig {
+  id         String    @id @default(uuid()) @db.Uuid
+  providerId String
+  config     Json
+  deletedAt  DateTime? @db.Timestamptz
+}
+
+// @deprecated - kept for 30-day migration safety net
 model ApiConfigOpenAi {
   id        String    @id @default(uuid()) @db.Uuid
   apiKey    String
@@ -168,6 +177,7 @@ model ApiConfigOpenAi {
   deletedAt DateTime? @db.Timestamptz
 }
 
+// @deprecated - kept for 30-day migration safety net
 model ApiConfigAzureOpenAi {
   id           String    @id @default(uuid()) @db.Uuid
   apiKey       String
@@ -176,18 +186,21 @@ model ApiConfigAzureOpenAi {
   deletedAt    DateTime? @db.Timestamptz
 }
 
+// @deprecated - kept for 30-day migration safety net
 model ApiConfigAnthropic {
   id        String    @id @default(uuid()) @db.Uuid
   apiKey    String
   deletedAt DateTime? @db.Timestamptz
 }
 
+// @deprecated - kept for 30-day migration safety net
 model ApiConfigGemini {
   id        String    @id @default(uuid()) @db.Uuid
   apiKey    String
   deletedAt DateTime? @db.Timestamptz
 }
 
+// @deprecated - kept for 30-day migration safety net
 model ApiConfigBedrock {
   id              String    @id @default(uuid()) @db.Uuid
   accessKeyId     String

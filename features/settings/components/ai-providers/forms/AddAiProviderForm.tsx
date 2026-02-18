@@ -1,86 +1,62 @@
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useState } from 'react';
 import { Button, Group, NumberInput, PasswordInput, Select, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { AiProviderType, AiProvidersSelectInputOptions, generateConditionalAiProviderSchema } from '@/features/shared/types';
+import { newProviderFormSchema, NewProviderFormValues } from '@/features/shared/types';
 import useAddAiProvider from '@/features/settings/api/ai-providers/add-ai-provider';
+import useGetProviderOptions from '@/features/settings/api/ai-providers/get-provider-options';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
 import { formatCurrencyNumber, parseNumber } from '@/features/shared/utils';
 
 export type AddAiProviderFormProps = Readonly<{ setFormCompleted: Dispatch<SetStateAction<boolean>>; }>;
 
-type AiProviderFormValues = {
-  aiProvider: number;
-  label: string;
-  apiKey: string;
-  apiEndpoint: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  sessionToken: string;
-  region: string;
-  inputCostPerMillionTokens?: number;
-  outputCostPerMillionTokens?: number;
-};
-
 export default function AddAiProviderForm({ setFormCompleted }: AddAiProviderFormProps) {
-
-  let selectData = AiProvidersSelectInputOptions;
-
   const { mutateAsync: addAiProvider, isPending: addAiProviderIsPending, error: addAiProviderError } = useAddAiProvider();
+  const { data: providerOptionsData } = useGetProviderOptions();
+  const providerSelectData = providerOptionsData?.options ?? [];
 
-  const [selectedAiProvider, setSelectedAiProvider] = useState<number>(0);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
 
-  const addAiProviderForm = useForm<AiProviderFormValues>({
+  const addAiProviderForm = useForm<NewProviderFormValues>({
     initialValues: {
-      aiProvider: 0,
+      providerId: '',
       label: '',
       apiKey: '',
+      orgKey: '',
       apiEndpoint: '',
+      deploymentId: '',
       accessKeyId: '',
       secretAccessKey: '',
       sessionToken: '',
       region: '',
+      baseURL: '',
       inputCostPerMillionTokens: undefined,
       outputCostPerMillionTokens: undefined,
     },
-    validate: zodResolver(
-      generateConditionalAiProviderSchema(selectData.find(data => data.value == String(selectedAiProvider)) ?? { label: '', value: '' })
-    ),
+    validate: zodResolver(newProviderFormSchema),
   });
 
-  useEffect(() => {
-    const aiProviderNumber = Number(addAiProviderForm.values.aiProvider);
+  const displayApiKey = ['openai', 'azure-openai', 'anthropic', 'gemini', 'openai-compatible'].includes(selectedProvider);
+  const displayApiEndpoint = selectedProvider === 'azure-openai';
+  const displayBaseURL = selectedProvider === 'openai-compatible';
+  const displayAwsFields = selectedProvider === 'bedrock';
 
-    if (!isNaN(aiProviderNumber)) {
-      setSelectedAiProvider(aiProviderNumber);
-    }
-  }, [addAiProviderForm.values.aiProvider]);
-
-  const displayInputApiEndpoint =
-    selectedAiProvider == AiProviderType.AzureOpenAi;
-  const displayInputApiKey =
-    selectedAiProvider == AiProviderType.OpenAi ||
-    selectedAiProvider == AiProviderType.AzureOpenAi ||
-    selectedAiProvider == AiProviderType.Anthropic ||
-    selectedAiProvider == AiProviderType.Gemini;
-  const displayAwsFields = selectedAiProvider == AiProviderType.Bedrock;
-
-  const handleSubmit = async (values: AiProviderFormValues) => {
-    const newProvider = {
-      label: values.label,
-      type: Number(values.aiProvider) as AiProviderType,
-      apiKey: values.apiKey,
-      apiEndpoint: values.apiEndpoint,
-      accessKeyId: values.accessKeyId,
-      secretAccessKey: values.secretAccessKey,
-      sessionToken: values.sessionToken,
-      region: values.region,
-      inputCostPerMillionTokens: values.inputCostPerMillionTokens,
-      outputCostPerMillionTokens: values.outputCostPerMillionTokens,
-    };
-
+  const handleSubmit = async (values: NewProviderFormValues) => {
     try {
-      await addAiProvider(newProvider);
+      await addAiProvider({
+        label: values.label,
+        providerId: values.providerId,
+        apiKey: values.apiKey,
+        apiEndpoint: values.apiEndpoint,
+        baseURL: values.baseURL,
+        orgKey: values.orgKey,
+        accessKeyId: values.accessKeyId,
+        secretAccessKey: values.secretAccessKey,
+        sessionToken: values.sessionToken,
+        region: values.region,
+        inputCostPerMillionTokens: values.inputCostPerMillionTokens,
+        outputCostPerMillionTokens: values.outputCostPerMillionTokens,
+      });
       handleFormCompletion();
     } catch (error) {
       notifications.show({
@@ -102,12 +78,16 @@ export default function AddAiProviderForm({ setFormCompleted }: AddAiProviderFor
   return (
     <form onSubmit={addAiProviderForm.onSubmit(handleSubmit)}>
       <Select
-        data={selectData}
+        data={providerSelectData}
         placeholder='Select AI Provider'
         data-testid='AI Provider'
         label='AI Provider'
         withinPortal={true}
-        {...addAiProviderForm.getInputProps('aiProvider')}
+        {...addAiProviderForm.getInputProps('providerId')}
+        onChange={(val) => {
+          addAiProviderForm.setFieldValue('providerId', val ?? '');
+          setSelectedProvider(val ?? '');
+        }}
       />
       <TextInput
         label='Label'
@@ -116,7 +96,7 @@ export default function AddAiProviderForm({ setFormCompleted }: AddAiProviderFor
         {...addAiProviderForm.getInputProps('label')}
       />
       {/* AI provider configurations */}
-      {displayInputApiEndpoint && (
+      {displayApiEndpoint && (
         <TextInput
           label='API Endpoint'
           placeholder='API Endpoint here'
@@ -124,7 +104,15 @@ export default function AddAiProviderForm({ setFormCompleted }: AddAiProviderFor
           {...addAiProviderForm.getInputProps('apiEndpoint')}
         />
       )}
-      {displayInputApiKey && (
+      {displayBaseURL && (
+        <TextInput
+          label='Base URL'
+          placeholder='https://api.example.com/v1'
+          data-testid='Base URL'
+          {...addAiProviderForm.getInputProps('baseURL')}
+        />
+      )}
+      {displayApiKey && (
         <PasswordInput
           label='API Key'
           placeholder={'API Key here'}

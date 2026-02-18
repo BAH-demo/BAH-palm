@@ -18,6 +18,10 @@
     "seed": "ts-node prisma/seed"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^1.1.6",
+    "@ai-sdk/anthropic": "^1.2.12",
+    "@ai-sdk/google": "^1.2.22",
+    "@ai-sdk/openai": "^1.2.3",
     "@anthropic-ai/sdk": "^0.20.3",
     "@aws-sdk/client-bedrock-agent-runtime": "^3.705.0",
     "@aws-sdk/client-bedrock-runtime": "^3.705.0",
@@ -45,6 +49,7 @@
     "@trpc/server": "^11",
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.11.10",
+    "ai": "^4.3.19",
     "autoprefixer": "^10.4.20",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
