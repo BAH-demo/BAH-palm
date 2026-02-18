@@ -1,148 +1,245 @@
-# Prompt & Agent Library Marketplace (PALM)
+# PALM — Prompt & Agent Library Marketplace
 
-## Overview
+PALM is Booz Allen's enterprise-ready, model-agnostic platform that connects users to a wide range of large language models (LLMs) and data sources through a unified, extensible interface. It provides secure, AI-powered chat and prompt workflows with full traceability — without vendor lock-in or the high costs of closed platforms.
 
-### Purpose of PALM
+With PALM, organizations can rapidly onboard user groups, assign access to specific models and data sources, and build mission-specific AI agents — all while giving administrators fine-grained control over provider integrations, knowledge base connections, usage monitoring, and role-based access.
 
-PALM (Prompt & Agent Library Marketplace) is Booz Allen’s enterprise-ready platform that connects users to a wide range of large language models (LLMs) and data sources through a unified, extensible interface. Unlike expensive, proprietary AI chat solutions, PALM is model-agnostic, cost-efficient, and designed to scale across teams and use cases.
+## Table of Contents
 
-With PALM, organizations can:
-- Rapidly onboard user groups and assign access to specific models and data sources
-- Enable secure, AI-powered chat and prompt workflows with full traceability
-- Build mission specific AI Agents that utilize user group approved resources
-- Customize and extend capabilities without being locked into a single vendor
+- [Key Capabilities](#key-capabilities)
+- [Core Modules](#core-modules)
+- [AI Agents](#ai-agents)
+- [Tech Stack](#tech-stack)
+- [Architecture Overview](#architecture-overview)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Environment Variables](#environment-variables)
+- [Authentication](#authentication)
+- [Feature Flags](#feature-flags)
+- [Knowledge Base Providers](#knowledge-base-providers)
+- [Document Uploads](#document-uploads)
+- [Error Handling](#error-handling)
+- [Deployment](#deployment)
+- [Admin Accounts](#admin-accounts)
+- [Security and SBOM](#security-and-sbom)
+- [FAQ](#faq)
+- [Additional Documentation](#additional-documentation)
+- [Contributing](#contributing)
+- [Release Management](#release-management)
+- [License](#license)
 
-Administrators gain fine-grained control over:
-- AI provider integrations (e.g., Bedrock, Azure OpenAI, Gemini)
-- Knowledge base connections and document uploads for real-time, citation-backed responses
-- Usage monitoring and role-based access
+## Key Capabilities
 
-PALM empowers teams to safely and efficiently harness generative AI without the licensing constraints, vendor lock-in, or high costs of closed platforms.
+- **Multi-model access** — connect to Bedrock, Azure OpenAI, Gemini, and more from a single interface
+- **AI Agents** — automated, multi-step analysis workflows (compliance checking, research discovery) powered by BullMQ and Redis
+- **Knowledge Bases** — integrate external knowledge bases for citation-backed, context-aware responses
+- **Document Uploads** — upload documents and use them as context in AI conversations
+- **Prompt Library & Generator** — curate, customize, and share prompts across teams
+- **Prompt Playground** — compare and fine-tune responses from multiple LLM providers side by side
+- **Deep Research** — extended AI-powered research with real-time progress tracking
+- **Role-based access control** — fine-grained admin controls over providers, knowledge bases, and user groups
+- **Feature flags** — safely ship incremental work behind toggles
 
-### Tech Stack
+## Core Modules
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app). The tech stack used is delinated in the list below:
+PALM provides five primary user-facing modules:
 
-- Next.js (framework)
-- Typescript (language)
-- tRPC (typesafe API layer)
-- Docker (deployment)
-- PostgreSQL (database)
-- Prisma (ORM)
-- Mantine (UI component library)
-- Yarn & npm (package manager)
-- Kubernetes via Amazon EKS (production deployment)
-- Helm (Kubernetes management)
+| Module | Path | Description |
+|---|---|---|
+| **Chat** | `/chat` | Converse with LLMs, incorporate knowledge bases, generate documents and code artifacts |
+| **Prompt Library** | `/library` | Browse predefined prompts and manage custom prompts |
+| **Prompt Generator** | `/prompt-generator` | Build prompts from scratch with guided instruction generation and fine-tuning |
+| **Prompt Playground** | `/prompt-playground` | Compare responses from multiple LLM providers (e.g., ChatGPT, Llama, Gemini) |
+| **AI Agents** | `/ai-agents` | Run configurable, use-case-specific automated workflows |
 
-### Release Management
+## AI Agents
 
-Please see our [release-management.md](docs/release-management.md) for information on our release process and schedule.
+PALM includes a background job processing system built on **BullMQ** with **Redis** for running complex, time-intensive AI analysis tasks asynchronously.
 
-## Guidance for Developers
+### Built-in Agents
 
-See [docs/getting-started/index.md](docs/getting-started/index.md) for how to get started developing.
+| Agent | Purpose | Key Features |
+|---|---|---|
+| **CERTA** (Compliance Evaluation, Reporting, and Tracking Agent) | Automated website compliance monitoring | Web crawling via Puppeteer, policy-based content analysis, real-time compliance scoring, multi-policy concurrent processing |
+| **RADAR** (Research Article Discovery and Analysis) | Academic research discovery and trend analysis | Multi-database paper search, AI-powered trend analysis, category/institution filtering, intelligent caching |
 
-### How to Contribute
+### Agent Processing Flow
 
-Please read through our [CONTRIBUTING.md](CONTRIBUTING.md) for instructions if you wish to contribute to PALM.
+```
+Frontend UI  ──▶  tRPC Routes  ──▶  Job Creation + Queue (Redis)
+                                              │
+Real-time UI  ◀──  Redis Hash  ◀──  BullMQ Worker (Background)
+  Progress         Storage            Processing
+```
 
-### Feature Flags
+1. User submits a request through the agent UI
+2. System validates user access via user group permissions
+3. Job is created and added to the BullMQ queue
+4. Background worker picks up and processes the job
+5. Intermediate results are stored in Redis as they complete
+6. Frontend polls Redis every 4–5 seconds for status updates
+7. Final results are stored in both Redis and the database
 
-New features typically need more than one PR to be completed - the work is done incrementally. This means the feature in question may not be complete even though the code has been merged. Therefore, we need some way to keep unfinished work from appearing in our production environment. We do this by using feature flags. To add and use a feature flag:
+For full details, see [docs/ai-agents/README.md](docs/ai-agents/README.md).
 
-1. Add the feature flag to:
-    - [.env.local.sample](.env.local.sample) (and your .env.local)
-    - [libs\featureFlags.ts](libs\featureFlags.ts)
-2. From there, use conditionals to prevent/allow access based on the value of the flag:
-    - The frontend uses `useGetFeatureFlag()` to get the value.
-    - The backend uses `isFeatureOn()` to get the value.
-3. In order to see your changes under a feature flag in your local development environment, be sure to turn the flag on by setting its value in your .env.local to `true`.
+## Tech Stack
 
-### Error Handling
+| Layer | Technology |
+|---|---|
+| Framework | [Next.js](https://nextjs.org/) (React 19) |
+| Language | TypeScript |
+| API | [tRPC](https://trpc.io/) (typesafe end-to-end) |
+| Database | PostgreSQL ([pgvector](https://github.com/pgvector/pgvector)) + [Prisma](https://www.prisma.io/) ORM |
+| Job Queue | [BullMQ](https://docs.bullmq.io/) + Redis |
+| UI | [Mantine](https://mantine.dev/) v6 |
+| Auth | [NextAuth.js](https://next-auth.js.org/) |
+| Validation | [Zod](https://zod.dev/) |
+| Logging | [Winston](https://github.com/winstonjs/winston) |
+| Package Manager | Yarn |
+| Containerization | Docker + Docker Compose |
+| Production Deploy | Kubernetes (Amazon EKS) + Helm |
 
-Our approach to error handling is designed to ensure security and low coupling between architectural layers. Here’s a summary of the error flow from their origin in the backend to their display in the frontend:
+## Architecture Overview
 
-#### Data Access Layer (DAL)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend                             │
+│   React 19 + Mantine UI + tRPC Client + React Query        │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────┐
+│                     Next.js Server                          │
+│   NextAuth.js │ tRPC Routers │ Middleware │ API Routes      │
+└───────┬──────────────┬──────────────┬───────────────────────┘
+        │              │              │
+   ┌────▼────┐   ┌─────▼─────┐  ┌────▼────┐
+   │PostgreSQL│   │   Redis   │  │ AI/LLM  │
+   │(pgvector)│   │  (BullMQ) │  │Providers│
+   └──────────┘   └───────────┘  └─────────┘
+                                  Bedrock │ Azure OpenAI
+                                  Gemini  │ Anthropic
+```
 
-- Database interactions are wrapped in try/catch blocks to catch and handle unexpected errors.
-- Caught errors should be re-thrown with sanitized messages that do not reveal sensitive information (e.g., variable names, PII).
-- Use a server-side logger (e.g., Winston) to log detailed error messages for debugging and troubleshooting.
+## Getting Started
 
-   ```javascript
-   try {
-       // database operation to get user role, then return the role
-   } catch (error) {
-       logger.error('Error getting user role', error);
-       throw new Error('Error getting user role');
-   }
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- [Node.js](https://nodejs.org/) v20+ (for local development outside Docker)
+- [Yarn](https://yarnpkg.com/)
+
+### Quick Start
+
+1. **Create your environment file:**
+
+   ```bash
+   cp .env.local.sample .env.local
    ```
 
-#### Route Layer
+   Fill in the required values — see [Environment Variables](#environment-variables) below.
 
-- Errors from the DAL should propagate through without being caught.
-- New errors in the route layer should relate to route-specific issues (e.g., insufficient privileges). Note that we use predefined, custom-wrapped [route errors](features\shared\errors\routeErrors.ts).
-- Route code does not catch unexpected errors from the route library, assuming the library sanitizes its error messages.
+2. **Start the application:**
 
-   ```javascript
-   if (userRole !== UserRole.Admin) {
-       throw Forbidden('You do not have permission to access this resource');
-   }
-   // call DAL to get result, then return the result
+   ```bash
+   docker compose up -d
    ```
 
-#### Routing Middleware
+   This starts three services: `frontend` (Next.js on port 3000), `db` (PostgreSQL on port 5432), and `redis` (port 6379).
 
-- Convert errors to a consistent format for the frontend. For example, use middleware to convert plain Errors from the DAL into TRPCErrors when using tRPC.
+3. **Initialize the database:**
 
-#### Frontend
-
-- Display errors from the backend to the user, such as using toast notifications for form submission errors.
-- Avoid including console logs in component files to prevent sensitive information from appearing in the user’s browser console.
-
-   ```javascript
-   try {
-       // await result from API call
-   } catch (error) {
-       notifications.show({
-           title: 'Submission Failed',
-           message: error?.message || 'An unexpected error occurred.',
-           variant: 'failed_operation',
-       });
-   }
+   ```bash
+   docker exec -it frontend yarn prisma migrate deploy
    ```
 
-By following these guidelines, we ensure that errors are handled securely and consistently across the application.
+4. **Open the app** at [http://localhost:3000](http://localhost:3000).
 
-### Authentication
+### Common Commands
 
-PALM leverages [NextAuth.js](https://next-auth.js.org/) for seamless and secure user authentication. Presently, it supports two authentication providers:
+| Command | Description |
+|---|---|
+| `docker exec -it frontend yarn lint` | Run ESLint checks |
+| `docker exec -it frontend yarn lint:fix` | Auto-fix lint issues |
+| `docker exec -it frontend yarn test` | Run unit tests |
+| `docker exec -it -e NODE_ENV=production frontend yarn build` | Production build |
+| `docker exec -it frontend yarn prisma studio` | Open Prisma Studio at [localhost:5555](http://localhost:5555) |
+| `docker exec -it frontend yarn prisma migrate dev` | Generate new migrations |
+| `docker exec -it frontend yarn prisma migrate reset` | Re-seed the database |
 
-  1. [AzureAD](https://next-auth.js.org/providers/azure-ad) - [Configuration Details](docs/auth/AzureAD.md)
-  2. [Keycloak](https://next-auth.js.org/providers/keycloak) - [Configuration Details](docs/auth/Keycloak.md)
-  
-Activation of these providers is managed through the `ENABLED_NEXTAUTH_PROVIDERS` environment variable. To enable both Keycloak and AzureAD, for instance, you would set this variable as follows:
+For more detailed developer guidance, see [docs/getting-started/index.md](docs/getting-started/index.md).
+
+## Project Structure
+
+```
+BAH-palm/
+├── components/          # Shared React components
+├── features/            # Feature modules organized by domain
+│   ├── ai-agents/       #   AI agent workflows (CERTA, RADAR)
+│   ├── chat/            #   Chat interface and message handling
+│   ├── library/         #   Prompt library
+│   ├── playground/      #   Prompt playground (multi-model comparison)
+│   ├── prompt-generator/#   Guided prompt builder
+│   ├── settings/        #   Admin settings and configuration
+│   ├── kb-provider/     #   Knowledge base provider integrations
+│   ├── document-upload-provider/ # Document upload handling
+│   └── shared/          #   Shared utilities, errors, and types
+├── libs/                # Shared utilities and helpers
+├── pages/               # Next.js pages and API routes
+│   └── api/             #   tRPC and REST API endpoints
+├── prisma/              # Database schema, migrations, and seed scripts
+├── providers/           # React context providers
+├── public/              # Static assets
+├── server/              # Server-side tRPC routers and middleware
+├── types/               # Shared TypeScript type definitions
+├── deployment/          # Kubernetes and Helm deployment configs
+├── docker/              # Docker-related build files
+└── docs/                # Documentation (ADL, auth, getting started)
+```
+
+## Environment Variables
+
+PALM is configured via a `.env.local` file. Copy `.env.local.sample` to get started. Key variables:
+
+| Variable | Required | Description |
+|---|---|---|
+| `NEXTAUTH_SECRET` | Yes | Session encryption key (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | Yes | Application URL (default: `http://localhost:3000`) |
+| `ENABLED_NEXTAUTH_PROVIDERS` | Yes | Comma-separated auth providers (e.g., `azure-ad,keycloak`) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `REDIS_HOST` / `REDIS_PORT` | Yes | Redis connection for BullMQ job queues |
+| `AWS_ACCESS_KEY_ID` | No | AWS credentials for Bedrock integration |
+| `AWS_SECRET_ACCESS_KEY` | No | AWS credentials for Bedrock integration |
+| `AWS_REGION` | No | AWS region for Bedrock resources |
+| `AZURE_AD_CLIENT_ID` | No | Azure AD OAuth client ID |
+| `AZURE_AD_CLIENT_SECRET` | No | Azure AD OAuth client secret |
+| `AZURE_AD_TENANT_ID` | No | Azure AD tenant ID |
+| `KEYCLOAK_ID` / `KEYCLOAK_SECRET` | No | Keycloak OAuth credentials |
+| `KEYCLOAK_ISSUER` | No | Keycloak realm URL |
+| `FEATURE_FLAG_PREFIX` | No | Prefix for feature flags (default: `Feature_`) |
+| `USER_ID_SALT` | No | Salt for hashing user IDs in storage object keys |
+| `LOG_LEVEL` | No | Winston log level (`error`, `warn`, `info`, `debug`, etc.) |
+| `LOG_FORMAT` | No | Log format (`json` or `prettyPrint`) |
+
+See [`.env.local.sample`](.env.local.sample) for the full list with descriptions.
+
+## Authentication
+
+PALM uses [NextAuth.js](https://next-auth.js.org/) and supports the following providers:
+
+| Provider | Configuration |
+|---|---|
+| Azure AD | [docs/auth/AzureAD.md](docs/auth/AzureAD.md) |
+| Keycloak | [docs/auth/Keycloak.md](docs/auth/Keycloak.md) |
+
+Enable providers via the `ENABLED_NEXTAUTH_PROVIDERS` environment variable:
 
 ```bash
 ENABLED_NEXTAUTH_PROVIDERS=azure-ad,keycloak
 ```
 
-### Admin Accounts
+### Inheriting Roles from OAuth
 
-To update an existing user's role to Admin, run the following command:
-
-```bash
-docker exec -it frontend yarn ts-node -r tsconfig-paths/register prisma/scripts/admin.ts <email address>
-```
-
-To create a new user with the role Admin, run the following command:
-
-```bash
-docker exec -it frontend yarn ts-node -r tsconfig-paths/register prisma/scripts/admin.ts <email address> <password>
-```
-
-### Inheriting User Roles from OAuth provider
-
-PALM leverages environment variables to handle role inheritance via an OAuth provider. The `INHERITED_OAUTH_ROLE_PATH` environment variable instructs PALM where to look for the role within the OAuth profile object that is returned by your OAuth provider. If the role is contained in an array, provide the correct path needed to reach the array; PALM will search an array for the first element in the array that is a valid `UserRole` so indices are not needed. For example, if the OAuth profile object has this shape
+Set `INHERITED_OAUTH_ROLE_PATH` to the dot-notation path within your OAuth profile object that contains the user role. For example, given this profile:
 
 ```json
 {
@@ -150,9 +247,7 @@ PALM leverages environment variables to handle role inheritance via an OAuth pro
     "access": {
       "palm": {
         "roles": {
-          "role": [
-            "Admin"
-          ]
+          "role": ["Admin"]
         }
       }
     }
@@ -160,96 +255,182 @@ PALM leverages environment variables to handle role inheritance via an OAuth pro
 }
 ```
 
-Then the correct value for `INHERITED_OAUTH_ROLE_PATH` is `access.palm.roles.role`. Similarly, if the OAuth profile object has this shape
+Set `INHERITED_OAUTH_ROLE_PATH=access.palm.roles.role`. PALM searches arrays for the first valid `UserRole` value, so indices are not needed.
 
-```json
-{
-  "OAuthProfile": {
-    "role": "Admin"
-  }
-}
-```
+If unset or invalid, PALM defaults to the role stored in the user's database record (`User`). Refer to the "Inheriting Session User Roles" section within each provider's configuration guide for setup details.
 
-Then the correct value for `INHERITED_OAUTH_ROLE_PATH` is simply `role`.
+## Feature Flags
 
-**Note:** If `INHERITED_OAUTH_ROLE_PATH` is not set, then role inheritance from an OAuth provider is disabled. Similarly, if `INHERITED_OAUTH_ROLE_PATH` is invalid or if the role returned by the OAuth provider is not a valid `UserRole`, then PALM defaults the user's role to the value set in that user's database record (defaults to `User`).
+In-progress features are hidden behind feature flags to prevent unfinished work from appearing in production.
 
-Refer to the "Inheriting Session User Roles" section within the specific OAuth provider's configuration steps to set up roles.
+1. Add your flag to [`.env.local.sample`](.env.local.sample) and [`libs/featureFlags.ts`](libs/featureFlags.ts).
+2. Use `useGetFeatureFlag()` on the frontend or `isFeatureOn()` on the backend to gate access.
+3. Set the flag to `true` in your `.env.local` to enable it locally.
 
-### Document Upload Providers
+Current flags:
 
-PALM provides document upload functionality that allows users to upload documents and use them as context in AI conversations. For detailed setup instructions including S3 bucket configuration and CORS setup, see the [Document Upload Documentation](./docs/document-upload/README.md).
+| Flag | Description |
+|---|---|
+| `Feature_PALM_KB` | PALM knowledge base features |
+| `Feature_DEEP_RESEARCH` | Deep research functionality in chat |
 
-### Knowledge Base Providers
+## Knowledge Base Providers
 
-PALM provides functionality that allows users to efficiently retrieve relevant contextual data from external knowledge bases.
+### AWS Bedrock
 
-#### Bedrock
+Configure via **Settings > Knowledge Base Providers > Bedrock** in the admin UI. Required fields: Access Key ID, Secret Access Key, Session Token, and Region.
 
-To connect PALM with AWS Bedrock, the recommended approach is for an admin to configure the Knowledge Base (KB) provider settings. Here are the steps for the admin to set this up:
+Falls back to `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, and `AWS_REGION` environment variables if admin configuration is not provided.
 
-1. Go to **Settings**.
-2. Select **Knowledge Base Providers**.
-3. Click the **+** icon next to **Knowledge Base Providers**.
-4. Choose **Bedrock** as the provider.
-5. Then fill in the following fields:
+### Local Testing
 
-- **Access Key ID**: The AWS access key ID.
-- **Secret Access Key**: The AWS secret access key.
-- **Session Token**: The session token for authentication.
-- **Region**: The AWS region where the Bedrock resources are located.
-
-By completing these fields, the KB provider will be fully configured to connect with AWS Bedrock.
-
-**Note**: If the KB provider configuration fields are left empty, PALM will automatically fall back to the following environment variables to establish the connection:
-
-- `AWS_ACCESS_KEY_ID`: Your AWS access key ID.
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key.
-- `AWS_SESSION_TOKEN`: The session token.
-- `AWS_REGION`: The AWS region where your Bedrock resources are deployed.
-
-Be sure that these environment variables are correctly populated, as PALM will use them to connect to AWS Bedrock if no admin configuration is provided.
-
-#### Testing With Local Knowledge Bases
-
-The `kb` Docker container exists for testing PALM features that interact with or depend on Knowledge Base Provider-related functionality locally.
-
-First, set a value for the `LOCAL_KB_API_KEY` environment variable, restart the `frontend` container, and start the `kb` service by running the following command:
+Start the local KB service:
 
 ```bash
 docker compose --profile kb up -d
 ```
 
-Then complete these configuration steps within the application:
+Then configure a **PALM** provider in **Settings > Knowledge Base Providers** with:
 
-1. Go to **Settings**.
-2. Select **Knowledge Base Providers**.
-3. Click the **+** icon next to **Knowledge Base Providers**.
-4. Choose **PALM** as the provider.
-5. Fill in the all necessary fields and use the following config values:
+- **API Endpoint:** `http://kb:5000`
+- **API Key:** your `LOCAL_KB_API_KEY` value
+- **External ID:** `my_knowledge_base`
 
-    - **API Endpoint**: `http://kb:5000`
-    - **API Key**: <LOCAL_KB_API_KEY>
+## Document Uploads
 
-6. Add a knowledge base to that provider, and set the `External ID` field to `my_knowledge_base`
-7. Interact with that provider in the chat interface
+PALM supports document uploads for use as context in AI conversations. Users can upload documents from their profile's Personal Document Library, which are then processed, embedded, and made available as chat context.
 
-### Deployment
+For detailed setup including S3 bucket configuration and CORS setup, see the [Document Upload Documentation](./docs/document-upload/README.md).
 
-#### Kubernetes
+## Error Handling
 
-The PALM application can be deployed to a Kubernetes cluster using Helm. To understand how to populate these Helm charts, refer to the example files:
+PALM follows a layered error handling approach to ensure security and low coupling between architectural layers:
 
-- `/deployment/examples/kubernetes/deployment.yaml` describes the deployment configuration for the application. It specifies the number of replicas, the image to be used, ports to expose, environment variables (derived from `.env.local.sample`), and volume mounts. It also includes configuration for image pull secrets and init containers. This file is used by Helm to deploy the application to a Kubernetes cluster.
+| Layer | Responsibility |
+|---|---|
+| **Data Access (DAL)** | Wrap DB calls in try/catch, log details with Winston, re-throw with sanitized messages |
+| **Route** | Throw domain-specific errors (e.g., `Forbidden`); let DAL errors propagate. Uses predefined [route errors](features/shared/errors/routeErrors.ts) |
+| **Middleware** | Convert errors to a consistent format (e.g., `TRPCError`) for the frontend |
+| **Frontend** | Display errors to users via toast notifications; avoid `console.log` in components |
 
-- `/deployment/examples/kubernetes/values.yaml` contains the configurable values for the deployment. It includes values for the image name, tag, host, port, environment variables, and other configuration options. These values can be customized based on the specific deployment environment.
+**DAL example:**
 
-### Architectural Decisions are logged
+```javascript
+try {
+    // database operation
+} catch (error) {
+    logger.error('Error getting user role', error);
+    throw new Error('Error getting user role'); // sanitized — no PII or internals
+}
+```
 
-Under the `/docs` directory is `/adl`, an Architectural Decision Log, directory. We will record all decisions here for things such as languages used, infrstructure dependencies used, methodologies used and so forth for future reading.
+**Frontend example:**
 
-### Security and SBOM
+```javascript
+try {
+    // await result from API call
+} catch (error) {
+    notifications.show({
+        title: 'Submission Failed',
+        message: error?.message || 'An unexpected error occurred.',
+        variant: 'failed_operation',
+    });
+}
+```
 
-This project maintains a **Software Bill of Materials (SBOM)** to transparently track and manage software dependencies, helping proactively address security vulnerabilities.
+## Deployment
 
-- [View and generate SBOM](bom/README.md)
+### Docker Compose (Development)
+
+The default `docker-compose.yml` starts four services:
+
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| `frontend` | Built from `Dockerfile` (dev target) | 3000 | Next.js application |
+| `db` | `ankane/pgvector:v0.5.1` | 5432 | PostgreSQL with vector extension |
+| `redis` | `redis:latest` | 6379 | BullMQ job queue backend |
+| `keycloak` | `quay.io/keycloak/keycloak:18.0.2` | 8080 | Local auth provider (optional) |
+
+### Kubernetes (Production)
+
+Deploy with Helm using the example configurations:
+
+- [`deployment/examples/kubernetes/deployment.yaml`](deployment/examples/kubernetes/deployment.yaml) — deployment spec (replicas, image, ports, env vars, volumes)
+- [`deployment/examples/kubernetes/values.yaml`](deployment/examples/kubernetes/values.yaml) — configurable Helm values
+
+For production Redis, use AWS ElastiCache — see [docs/ai-agents/elasticache-setup.md](docs/ai-agents/elasticache-setup.md).
+
+### Production Docker Image (Local)
+
+```bash
+docker build -t palm-prod .
+docker run -it --rm --env-file .env.local -e NEXTAUTH_URL=http://localhost:3001 -p 3001:3000 --network palm-net palm-prod
+```
+
+For the hardened Chainguard image:
+
+```bash
+docker build -f Dockerfile.chainguard -t palm-prod .
+```
+
+## Admin Accounts
+
+Promote an existing user to Admin:
+
+```bash
+docker exec -it frontend yarn ts-node -r tsconfig-paths/register prisma/scripts/admin.ts <email>
+```
+
+Create a new Admin user:
+
+```bash
+docker exec -it frontend yarn ts-node -r tsconfig-paths/register prisma/scripts/admin.ts <email> <password>
+```
+
+## Security and SBOM
+
+This project maintains a Software Bill of Materials (SBOM) to track dependencies and address vulnerabilities. See [bom/README.md](bom/README.md) for details on viewing and generating the SBOM.
+
+To report a security vulnerability, navigate to the **Security** tab in GitHub and click **Report a vulnerability**. See [SECURITY.md](SECURITY.md).
+
+Architectural decisions are logged in [docs/adl/](docs/adl/) for future reference.
+
+## FAQ
+
+**What is PALM?**
+PALM is a comprehensive AI productivity platform that combines a prompt library, chat interface, automated agentic workflows, and advanced AI model experimentation tools. It empowers users to leverage AI through multiple pathways — specialized prompts, natural conversations, multi-step automated workflows, and cross-provider model comparison.
+
+**How is the application used?**
+Users interact through five main modules: **Chat** (LLM conversations with knowledge base context), **Prompt Library** (predefined and custom prompts), **Prompt Generator** (guided prompt building), **Prompt Playground** (multi-model comparison), and **AI Agents** (automated analysis workflows).
+
+**What's the roadmap?**
+PALM continues to evolve with expanded agentic workflows, improved workflow customization, and additional AI model provider integrations.
+
+For the full FAQ, see [docs/FAQ.md](docs/FAQ.md).
+
+## Additional Documentation
+
+| Document | Description |
+|---|---|
+| [Getting Started](docs/getting-started/index.md) | Full development setup guide |
+| [AI Agents](docs/ai-agents/README.md) | Agent system architecture and configuration |
+| [ElastiCache Setup](docs/ai-agents/elasticache-setup.md) | Production Redis configuration |
+| [Azure AD Auth](docs/auth/AzureAD.md) | Azure AD provider setup |
+| [Keycloak Auth](docs/auth/Keycloak.md) | Keycloak provider setup |
+| [Document Uploads](docs/document-upload/README.md) | S3 and CORS configuration |
+| [Architectural Decisions](docs/adl/README.md) | ADL index and template |
+| [CHANGELOG](CHANGELOG.md) | Version history and release notes |
+| [CONTRIBUTING](CONTRIBUTING.md) | Contribution guidelines |
+| [SECURITY](SECURITY.md) | Vulnerability reporting |
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on style, branching, testing, and pull requests.
+
+## Release Management
+
+See [docs/release-management.md](docs/release-management.md) for information on our release process and schedule.
+
+## License
+
+Licensed under the [Booz Allen Public License v1.0](LICENSE).
