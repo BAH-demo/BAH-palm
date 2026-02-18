@@ -3,23 +3,17 @@ import { Button, Group, NumberInput, PasswordInput, Select, TextInput } from '@m
 import { useForm, zodResolver } from '@mantine/form';
 import { newProviderFormSchema, NewProviderFormValues } from '@/features/shared/types';
 import useAddAiProvider from '@/features/settings/api/ai-providers/add-ai-provider';
+import useGetProviderOptions from '@/features/settings/api/ai-providers/get-provider-options';
 import { notifications } from '@mantine/notifications';
 import { IconX } from '@tabler/icons-react';
 import { formatCurrencyNumber, parseNumber } from '@/features/shared/utils';
 
 export type AddAiProviderFormProps = Readonly<{ setFormCompleted: Dispatch<SetStateAction<boolean>>; }>;
 
-const providerSelectData = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'azure-openai', label: 'Azure OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'bedrock', label: 'Amazon Bedrock' },
-  { value: 'openai-compatible', label: 'OpenAI Compatible (Custom)' },
-];
-
 export default function AddAiProviderForm({ setFormCompleted }: AddAiProviderFormProps) {
   const { mutateAsync: addAiProvider, isPending: addAiProviderIsPending, error: addAiProviderError } = useAddAiProvider();
+  const { data: providerOptionsData } = useGetProviderOptions();
+  const providerSelectData = providerOptionsData?.options ?? [];
 
   const [selectedProvider, setSelectedProvider] = useState<string>('');
 
