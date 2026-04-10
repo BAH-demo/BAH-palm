@@ -24,9 +24,11 @@ import getSystemConfig from '@/features/shared/dal/getSystemConfig';
 import getDocuments from '@/features/shared/dal/document-upload/getDocuments';
 import getBedrockModelAccess from '@/features/shared/dal/getBedrockModelAccess';
 import { getDeepResearchQueue } from '@/features/ai-provider/sources/deep-research/deepResearchQueue';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 
 jest.mock('@/features/chat/dal/createMessages');
 jest.mock('@/features/chat/dal/getChat');
+jest.mock('@/features/chat/dal/getChatAccess');
 jest.mock('@/features/chat/dal/getMessages');
 jest.mock('@/features/chat/dal/getEmbeddingsForDocuments');
 jest.mock('@/features/chat/utils/artifactHelperFunctions');
@@ -224,6 +226,7 @@ describe('retry-message', () => {
 
     (getChat as jest.Mock).mockResolvedValue(mockGetChatResolvedValue);
     (getMessages as jest.Mock).mockResolvedValue(mockGetMessagesResolvedValue);
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
 
     (addSystemInstructions as jest.Mock).mockReturnValue('Message with custom instructions');
     (extractArtifactsFromMessage as jest.Mock).mockReturnValue({
@@ -325,6 +328,7 @@ describe('retry-message', () => {
 
   it('throws error if user does not own chat and is not an admin', async () => {
     ctx.userId = '76073cf6-ce35-4146-a4b2-ed0132e5b7ae';
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
 
     const caller = chatRouter.createCaller(ctx);
 

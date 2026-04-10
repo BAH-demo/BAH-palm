@@ -28,6 +28,7 @@ export default function ChatContent() {
     selectedArtifact,
     regeneratingResponse,
     deepResearchEnabled,
+    isCollaborative,
     setRegeneratingResponse,
     setIsLastMessageRetry,
     setSelectedArtifact,
@@ -60,6 +61,7 @@ export default function ChatContent() {
     pendingMessage,
     systemMessage,
     regeneratingResponse,
+    isCollaborative,
   );
 
   const messagesEndRef = useRef<HTMLOListElement>(null);

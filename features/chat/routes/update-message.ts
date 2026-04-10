@@ -5,6 +5,7 @@ import { UserRole } from '@/features/shared/types/user';
 import { Forbidden } from '@/features/shared/errors/routeErrors';
 import getMessage from '@/features/chat/dal/getMessage';
 import getChat from '@/features/chat/dal/getChat';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import updateMessage from '@/features/chat/dal/updateMessage';
 
 const inputSchema = z.object({
@@ -27,11 +28,14 @@ export default procedure
     const message = await getMessage(messageId);
     const chat = await getChat(message.chatId);
 
-    if (ctx.userRole !== UserRole.Admin && chat.userId !== ctx.userId) {
-      ctx.logger.error(
-        `You do not have permission to edit this message: userId: ${ctx.userId}, messageId: ${messageId}`
-      );
-      throw Forbidden('You do not have permission to edit this message');
+    if (ctx.userRole !== UserRole.Admin) {
+      const access = await getChatAccess(message.chatId, ctx.userId);
+      if (!access || access === 'Viewer') {
+        ctx.logger.error(
+          `You do not have permission to edit this message: userId: ${ctx.userId}, messageId: ${messageId}`
+        );
+        throw Forbidden('You do not have permission to edit this message');
+      }
     }
 
     await updateMessage({ messageId, content });

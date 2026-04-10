@@ -4,6 +4,7 @@ import { UserRole } from '@/features/shared/types/user';
 import { DeepResearchStatus } from '@/features/chat/types/message';
 import { Forbidden } from '@/features/shared/errors/routeErrors';
 import getChat from '@/features/chat/dal/getChat';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import db from '@/server/db';
 
 const inputSchema = z.object({
@@ -25,8 +26,11 @@ export default procedure
 
     const chat = await getChat(chatId);
 
-    if (ctx.userRole !== UserRole.Admin && chat.userId !== ctx.userId) {
-      throw Forbidden('You do not have permission to access this chat');
+    if (ctx.userRole !== UserRole.Admin) {
+      const access = await getChatAccess(chatId, ctx.userId);
+      if (!access) {
+        throw Forbidden('You do not have permission to access this chat');
+      }
     }
 
     // Get status from database - try by jobId first, then by messageId

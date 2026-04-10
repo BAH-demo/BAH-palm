@@ -73,6 +73,7 @@ export default function ChatHistory() {
                 chatId={chat.id}
                 summary={chat.summary}
                 promptId={chat.promptId}
+                isCollaborative={'isCollaborative' in chat && !!chat.isCollaborative}
                 onDeleteClick={handleOpenDeleteChatModal}
               />
             ))}

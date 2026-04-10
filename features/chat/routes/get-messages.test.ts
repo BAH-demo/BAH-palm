@@ -4,9 +4,11 @@ import logger from '@/server/logger';
 import chatRouter from '@/features/chat/routes';
 import getChat from '@/features/chat/dal/getChat';
 import getMessages from '@/features/chat/dal/getMessages';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 
 jest.mock('@/features/chat/dal/getMessages');
 jest.mock('@/features/chat/dal/getChat');
+jest.mock('@/features/chat/dal/getChatAccess');
 
 const mockUserId = '570e3594-0ff3-475d-9ee0-4be261e6b8db';
 const mockChatId = 'fcc14cff-37ba-42bb-8d83-c5618d25acd3';
@@ -69,6 +71,7 @@ describe('getMessages procedure', () => {
 
     (getChat as jest.Mock).mockResolvedValue(mockGetChatResolvedValue);
     (getMessages as jest.Mock).mockResolvedValue(mockGetMessagesResolvedValue);
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
 
     ctx = {
       userId: mockUserId,
@@ -100,6 +103,7 @@ describe('getMessages procedure', () => {
 
   it('throws error if user does not own chat and is not an admin', async () => {
     ctx.userId = 'some-other-user-id';
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
     const input = { chatId: mockChatId };
     const caller = chatRouter.createCaller(ctx);
 
@@ -134,6 +138,7 @@ describe('getMessages procedure', () => {
   });
 
   it('throws error if messages retrieval fails', async () => {
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
     (getMessages as jest.Mock).mockRejectedValue(new Error('Database error'));
     const input = { chatId: mockChatId };
     const caller = chatRouter.createCaller(ctx);

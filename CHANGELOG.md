@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- [FEATURE FLAGGED] Chat - Collaborative/shared chat sessions with role-based access control (Owner, Collaborator, Viewer)
+- Chat - ChatMember join table for many-to-many relationship between Chat and User
+- Chat - Authorization helper (getChatAccess) for unified access checks across all chat routes
+- Chat - Collaborator management routes (add/remove/get collaborators, share with group)
+- Chat - Polling-based real-time sync for collaborative chats (3-second intervals)
+- Chat - Redis-based mutex for concurrency control on LLM calls in shared chats
+- Chat - Message attribution via senderId field on ChatMessage
+- Chat - CollaboratorPanel UI component for managing chat collaborators
+- Chat - Visual indicator (icon) for collaborative chats in sidebar
+
 ### Changed
 
 ### Deprecated
