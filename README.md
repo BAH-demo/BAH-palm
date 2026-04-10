@@ -38,6 +38,16 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 Please see our [release-management.md](docs/release-management.md) for information on our release process and schedule.
 
+## Quick Start
+
+Run the entire application with a single command:
+
+```bash
+docker compose up
+```
+
+Open [http://localhost:3000](http://localhost:3000) to access PALM. No `.env.local` file is needed — sensible defaults are built in. See [docs/getting-started/index.md](docs/getting-started/index.md) for custom configuration, optional services (Keycloak, Knowledge Base), and detailed developer documentation.
+
 ## Guidance for Developers
 
 See [docs/getting-started/index.md](docs/getting-started/index.md) for how to get started developing.
@@ -236,7 +246,17 @@ Then complete these configuration steps within the application:
 
 ### Deployment
 
-#### Kubernetes
+#### Docker Compose (Development / Demo)
+
+The fastest way to run PALM locally is with Docker Compose. A single command starts all required services (PostgreSQL, Redis, frontend) with sensible defaults:
+
+```bash
+docker compose up
+```
+
+See the [Quick Start](#quick-start) section above and [docs/getting-started/index.md](docs/getting-started/index.md) for full details including custom configuration and optional services.
+
+#### Kubernetes (Production)
 
 The PALM application can be deployed to a Kubernetes cluster using Helm. To understand how to populate these Helm charts, refer to the example files:
 

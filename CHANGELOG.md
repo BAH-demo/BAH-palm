@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Deployment - Simplified Docker Compose setup for single-command startup (`docker compose up`)
+- Deployment - Added dev-entrypoint.sh for automatic database migration on container start
+- Deployment - Added PostgreSQL healthcheck and service dependency ordering
+- Deployment - Made `.env.local` optional with sensible built-in defaults for local development
+- Deployment - Moved Keycloak to optional `keycloak` profile (start with `--profile keycloak`)
+- Docs - Updated getting-started guide with Quick Start instructions
+- Docs - Added Docker Compose deployment section to README
+
 ### Deprecated
 
 ### Removed

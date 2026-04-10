@@ -1,24 +1,66 @@
 # Getting Started
 
-**1.** Generate `.env.local` file and fill in the values
+## Quick Start (Single Command)
+
+Run the entire application with one command — no manual configuration required:
+
+```bash
+docker compose up
+```
+
+This will:
+- Start PostgreSQL (with pgvector), Redis, and the PALM frontend
+- Wait for the database to be healthy before starting the app
+- Automatically run Prisma database migrations
+- Start the Next.js development server on [http://localhost:3000](http://localhost:3000)
+
+The default configuration uses credentials-based authentication. You can sign up and log in directly. To create an admin user, run:
+
+```bash
+docker exec -it frontend yarn ts-node -r tsconfig-paths/register prisma/scripts/admin.ts <email> <password>
+```
+
+> **Note:** The quick start uses built-in defaults (e.g., `postgres` as the DB password, a development-only NextAuth secret). These are fine for local development but **must** be changed for any shared or production environment.
+
+## Custom Configuration
+
+To customize environment variables (e.g., enable SSO, connect to AWS, change DB credentials):
+
+**1.** Copy the sample environment file
 
 ```bash
 cp .env.local.sample .env.local
 ```
 
-**2.** Start the app and DB services with docker compose
+**2.** Edit `.env.local` with your values (see comments in the file for guidance)
+
+**3.** Start the application
 
 ```bash
-docker compose up -d
+docker compose up
 ```
 
-**3.** Initialize the DB
+Any values set in `.env.local` will override the built-in defaults.
+
+## Optional Services
+
+**Keycloak** (SSO provider): Start with the `keycloak` profile:
 
 ```bash
-docker exec -it frontend yarn prisma migrate deploy
+docker compose --profile keycloak up
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Knowledge Base** (local KB for testing): Start with the `kb` profile:
+
+```bash
+docker compose --profile kb up
+```
+
+You can combine profiles:
+
+```bash
+docker compose --profile keycloak --profile kb up
+```
 
 ## Prisma
 
