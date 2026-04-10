@@ -30,6 +30,8 @@ model User {
   userGroupMemberhip       UserGroupMembership[]
   AiProviderUsage          AiProviderUsage[]
   Chat                     Chat[]
+  chatMemberships          ChatMember[]
+  sentMessages             ChatMessage[]     @relation("MessageSender")
   // Implicit M:M https://www.prisma.io/docs/orm/prisma-schema/data-model/relations/many-to-many-relations#implicit-many-to-many-relations
   knowledgeBases           KnowledgeBase[]
   knowledgeBasesMinScore   Float?
@@ -277,10 +279,24 @@ model Chat {
   model     Model?        @relation(fields: [modelId], references: [id], onDelete: SetNull)
   prompt    Prompt?       @relation(fields: [promptId], references: [id], onDelete: SetNull)
   messages  ChatMessage[]
+  members   ChatMember[]
 
   @@index([userId, createdAt])
   @@index(modelId)
   @@index(promptId)
+}
+
+model ChatMember {
+  chatId    String   @db.Uuid
+  userId    String   @db.Uuid
+  role      String   @default("Collaborator") // "Owner" | "Collaborator" | "Viewer"
+  joinedAt  DateTime @default(now()) @db.Timestamptz
+
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
 }
 
 // ChatMessage is a message model
@@ -289,6 +305,8 @@ model ChatMessage {
   chatId               String                @db.Uuid
   role                 String
   content              String
+  senderId             String?               @db.Uuid
+  sender               User?                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
   createdAt            DateTime              @default(now()) @db.Timestamptz
   updatedAt            DateTime              @default(now()) @updatedAt @db.Timestamptz
   chat                 Chat                  @relation(fields: [chatId], references: [id], onDelete: Cascade)

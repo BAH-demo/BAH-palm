@@ -6,6 +6,7 @@ import { UserRole } from '@/features/shared/types/user';
 import { ChatCompletionMessage } from '@/features/ai-provider/sources/types';
 import { MessageRole, ContextType, Citation, DeepResearchStatus } from '@/features/chat/types/message';
 import { Forbidden, InternalServerError } from '@/features/shared/errors/routeErrors';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import getChat from '@/features/chat/dal/getChat';
 import getMessages from '@/features/chat/dal/getMessages';
 import createMessages, {
@@ -26,6 +27,7 @@ import getEmbeddingsForDocuments from '@/features/chat/dal/getEmbeddingsForDocum
 import addContextToMessage from '@/features/chat/knowledge-bases/addContextToMessage';
 import { addSystemInstructions } from '@/features/chat/utils/chatHelperFunctions';
 import { getDeepResearchQueue } from '@/features/ai-provider/sources/deep-research/deepResearchQueue';
+import { tryGetRedisClient } from '@/server/storage/redisConnection';
 import getUserKnowledgeBases from '@/features/shared/dal/getUserKnowledgeBases';
 import getSystemConfig from '@/features/shared/dal/getSystemConfig';
 import getDocuments from '@/features/shared/dal/document-upload/getDocuments';
@@ -119,11 +121,26 @@ export default procedure
 
     const chat = await getChat(chatId);
 
-    if (ctx.userRole !== UserRole.Admin && chat.userId !== ctx.userId) {
-      ctx.logger.error(
-        `You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`
-      );
-      throw Forbidden('You do not have permission to use this chat');
+    if (ctx.userRole !== UserRole.Admin) {
+      const access = await getChatAccess(chatId, ctx.userId);
+      if (!access || access === 'Viewer') {
+        ctx.logger.error(
+          `You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`
+        );
+        throw Forbidden('You do not have permission to use this chat');
+      }
+    }
+
+    // Redis-based concurrency lock for collaborative chats
+    const redis = await tryGetRedisClient();
+    const lockKey = `chat-lock:${chatId}`;
+    let lockAcquired = false;
+    if (redis) {
+      const acquired = await redis.set(lockKey, ctx.userId, 'EX', 120, 'NX');
+      if (!acquired) {
+        throw Forbidden('Another collaborator is currently sending a message. Please wait.');
+      }
+      lockAcquired = true;
     }
 
     // check if the modelId is set
@@ -132,6 +149,7 @@ export default procedure
       throw new Error('Model for chat has not been set');
     }
 
+    try {
     // This will be used for the message from the user.
     const now = new Date();
 
@@ -200,6 +218,7 @@ export default procedure
 
     const createMsgInput: CreateMessagesInput = {
       chatId: chat.id,
+      senderId: ctx.userId,
       messages: [
         {
           id: v4(),
@@ -342,4 +361,10 @@ export default procedure
       isDeepResearch: deepResearchEnabled,
       deepResearchJobId,
     };
+    } finally {
+      // Release Redis lock if acquired
+      if (lockAcquired && redis) {
+        await redis.del(lockKey);
+      }
+    }
   });

@@ -26,9 +26,11 @@ import getUserKnowledgeBases from '@/features/shared/dal/getUserKnowledgeBases';
 import getSystemConfig from '@/features/shared/dal/getSystemConfig';
 import getDocuments from '@/features/shared/dal/document-upload/getDocuments';
 import getBedrockModelAccess from '@/features/shared/dal/getBedrockModelAccess';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 
 jest.mock('@/features/chat/dal/createMessages');
 jest.mock('@/features/chat/dal/getChat');
+jest.mock('@/features/chat/dal/getChatAccess');
 jest.mock('@/features/chat/dal/getEmbeddingsForDocuments');
 jest.mock('@/features/chat/dal/getMessages');
 jest.mock('@/features/chat/knowledge-bases/getContentFromKbs');
@@ -241,6 +243,7 @@ describe('add-message', () => {
     jest.clearAllMocks();
     (getChat as jest.Mock).mockResolvedValue(mockGetChatResolvedValue);
     (getMessages as jest.Mock).mockResolvedValue(mockGetMessagesResolvedValue);
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
     (addContextToMessage as jest.Mock).mockReturnValue(kbEnhancedMessage);
     (getContentFromKbs as jest.Mock).mockResolvedValue(kbResultsMock);
 
@@ -321,6 +324,7 @@ describe('add-message', () => {
 
   it('throws error if user does not own chat and is not an admin', async () => {
     ctx.userId = 'some-other-user-id';
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
 
     const caller = chatRouter.createCaller(ctx);
 

@@ -15,9 +15,11 @@ jest.mock('@/server/db', () => ({
 }));
 
 jest.mock('@/features/chat/dal/getChat');
+jest.mock('@/features/chat/dal/getChatAccess');
 
 import chatRouter from '@/features/chat/routes';
 import getChat from '@/features/chat/dal/getChat';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import db from '@/server/db';
 
 describe('get-deep-research-status', () => {
@@ -40,6 +42,7 @@ describe('get-deep-research-status', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
   });
 
   it('should return pending status when no message found', async () => {
@@ -166,6 +169,7 @@ describe('get-deep-research-status', () => {
       id: mockChatId,
       userId: 'different-user',
     });
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
 
     const input = {
       chatId: mockChatId,
@@ -182,6 +186,7 @@ describe('get-deep-research-status', () => {
       id: mockChatId,
       userId: 'different-user',
     });
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
 
     (db.chatMessage.findFirst as jest.Mock).mockResolvedValue(null);
 

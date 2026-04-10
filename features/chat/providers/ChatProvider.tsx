@@ -2,6 +2,12 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { Artifact } from '@/features/chat/types/message';
 
+export interface Collaborator {
+  userId: string;
+  role: string;
+  email?: string;
+}
+
 interface ChatContextData {
   chatId: string | null;
   setChatId: (chatId: string) => void;
@@ -29,6 +35,10 @@ interface ChatContextData {
   setSelectedText: (text: string | null) => void;
   entryBeingEdited: string | null;
   setEntryBeingEdited: (id: string | null) => void;
+  isCollaborative: boolean;
+  setIsCollaborative: (isCollaborative: boolean) => void;
+  collaborators: Collaborator[];
+  setCollaborators: (collaborators: Collaborator[]) => void;
 }
 
 const ChatContext = createContext<ChatContextData>({
@@ -58,6 +68,10 @@ const ChatContext = createContext<ChatContextData>({
   setSelectedText: () => {},
   entryBeingEdited: null,
   setEntryBeingEdited: () => { },
+  isCollaborative: false,
+  setIsCollaborative: () => { },
+  collaborators: [],
+  setCollaborators: () => { },
 });
 
 type ChatProviderProps = {
@@ -90,6 +104,8 @@ export const ChatProvider = ({
   const [systemMessage, setSystemMessage] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState<string | null>(null);
   const [entryBeingEdited, setEntryBeingEdited] = useState<string | null>(null);
+  const [isCollaborative, setIsCollaborative] = useState(false);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
 
   useEffect(() => {
     setChatId(cid !== undefined ? cid : null);
@@ -125,6 +141,10 @@ export const ChatProvider = ({
       setSelectedText,
       entryBeingEdited,
       setEntryBeingEdited,
+      isCollaborative,
+      setIsCollaborative,
+      collaborators,
+      setCollaborators,
     }),
     [
       chatId,
@@ -153,6 +173,10 @@ export const ChatProvider = ({
       setSelectedText,
       entryBeingEdited,
       setEntryBeingEdited,
+      isCollaborative,
+      setIsCollaborative,
+      collaborators,
+      setCollaborators,
     ]
   );
 

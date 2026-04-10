@@ -10,9 +10,10 @@ export default function useFormatChatEntries(
   promptId: string | null,
   pendingMessage: string | null,
   systemMessage: string | null,
-  regeneratingResponse: boolean
+  regeneratingResponse: boolean,
+  isCollaborative: boolean = false
 ) {
-  const messagesQry = useGetMessages(chatId);
+  const messagesQry = useGetMessages(chatId, isCollaborative);
   const promptQry = useGetOriginPrompt(promptId);
 
   const entries = useMemo(() => {

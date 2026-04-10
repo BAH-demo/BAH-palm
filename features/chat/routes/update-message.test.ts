@@ -7,10 +7,12 @@ import getMessage from '@/features/chat/dal/getMessage';
 import getChat from '@/features/chat/dal/getChat';
 import updateMessage from '@/features/chat/dal/updateMessage';
 import { Forbidden } from '@/features/shared/errors/routeErrors';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import logger from '@/server/logger';
 
 jest.mock('@/features/chat/dal/getMessage');
 jest.mock('@/features/chat/dal/getChat');
+jest.mock('@/features/chat/dal/getChatAccess');
 jest.mock('@/features/chat/dal/updateMessage');
 
 describe('update-message route', () => {
@@ -74,6 +76,7 @@ describe('update-message route', () => {
 
     (getMessage as jest.Mock).mockResolvedValue(mockMessage);
     (getChat as jest.Mock).mockResolvedValue(mockChat);
+    (getChatAccess as jest.Mock).mockResolvedValue('Owner');
     (updateMessage as jest.Mock).mockResolvedValue(undefined);
   });
 
@@ -109,6 +112,7 @@ describe('update-message route', () => {
 
   it('throws Forbidden error when user does not own the chat and is not admin', async () => {
     (getChat as jest.Mock).mockResolvedValue(mockOtherUserChat);
+    (getChatAccess as jest.Mock).mockResolvedValue(null);
 
     const caller = chatRouter.createCaller(mockUserCtx);
 

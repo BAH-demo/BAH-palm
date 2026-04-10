@@ -13,6 +13,7 @@ import {
 } from '@/features/shared/errors/routeErrors';
 import logger from '@/server/logger';
 import getChat from '@/features/chat/dal/getChat';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import createMessages, {
   CreateMessagesInput,
 } from '@/features/chat/dal/createMessages';
@@ -122,11 +123,14 @@ export default procedure
 
     const chat = await getChat(chatId);
 
-    if (ctx.userRole !== UserRole.Admin && chat.userId !== ctx.userId) {
-      logger.error(
-        `You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`
-      );
-      throw Forbidden('You do not have permission to use this chat');
+    if (ctx.userRole !== UserRole.Admin) {
+      const access = await getChatAccess(chatId, ctx.userId);
+      if (!access || access === 'Viewer') {
+        logger.error(
+          `You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`
+        );
+        throw Forbidden('You do not have permission to use this chat');
+      }
     }
 
     if (!chat.modelId) {
@@ -227,6 +231,7 @@ export default procedure
         
         createMsgInput = {
           chatId: chat.id,
+          senderId: ctx.userId,
           messages: [
             {
               id: chatMsgId,
@@ -261,6 +266,7 @@ export default procedure
       
       createMsgInput = {
         chatId: chat.id,
+        senderId: ctx.userId,
         messages: [
           {
             id: chatMsgId,

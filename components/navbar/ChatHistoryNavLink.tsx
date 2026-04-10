@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { ActionIcon, Loader, NavLink, ThemeIcon } from '@mantine/core';
-import { IconMessageCircle2, IconTrash } from '@tabler/icons-react';
+import { IconMessageCircle2, IconTrash, IconUsers } from '@tabler/icons-react';
 
 import { generatePath } from '@/features/chat/utils/chatHelperFunctions';
 import useGetOriginPrompt from '@/features/chat/api/get-origin-prompt';
@@ -11,10 +11,11 @@ type ChatHistoryNavLinkProps = Readonly<{
   chatId: string;
   summary: string | null;
   promptId: string | null;
+  isCollaborative?: boolean;
   onDeleteClick: (event: React.MouseEvent, chatId: string) => void;
 }>
 
-export default function ChatHistoryNavLink({ chatId, summary, promptId, onDeleteClick }: ChatHistoryNavLinkProps) {
+export default function ChatHistoryNavLink({ chatId, summary, promptId, isCollaborative, onDeleteClick }: ChatHistoryNavLinkProps) {
   const promptQry = useGetOriginPrompt(promptId);
   const href = generatePath(chatId, promptQry.data?.prompt.title);
 
@@ -49,7 +50,7 @@ export default function ChatHistoryNavLink({ chatId, summary, promptId, onDelete
       title={chatSummary}
       icon={
         <ThemeIcon size='sm'>
-          <IconMessageCircle2 />
+          {isCollaborative ? <IconUsers /> : <IconMessageCircle2 />}
         </ThemeIcon>
       }
       rightSection={

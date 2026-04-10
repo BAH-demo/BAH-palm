@@ -6,6 +6,7 @@ import { Message, MessageRole, Artifact, ContextType, Citation, DeepResearchStat
 // This is being done because the prisma `createMany` function does not return the IDs of the created records
 export type CreateMessagesInput = Readonly<{
   chatId: string;
+  senderId?: string;
   messages: Array<{
     id: string;
     role: MessageRole;
@@ -32,6 +33,7 @@ export default async function createMessages(
           chatId: input.chatId,
           role: message.role,
           content: message.content,
+          senderId: message.role === 'user' ? input.senderId : undefined,
           createdAt: message.createdAt,
           deepResearch: message.deepResearch,
           deepResearchJobId: message.deepResearchJobId,

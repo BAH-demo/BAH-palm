@@ -5,6 +5,7 @@ import { UserRole } from '@/features/shared/types/user';
 import { BadRequest, Forbidden } from '@/features/shared/errors/routeErrors';
 import logger from '@/server/logger';
 import getChat from '@/features/chat/dal/getChat';
+import { getChatAccess } from '@/features/chat/dal/getChatAccess';
 import getMessage from '@/features/chat/dal/getMessage';
 import deleteMessagesSince from '@/features/chat/dal/deleteMessagesSince';
 
@@ -25,9 +26,12 @@ export default procedure
     // this will throw an error if the chat does not exist
     const chat = await getChat(input.chatId);
 
-    if (ctx.userRole !== UserRole.Admin && chat.userId !== ctx.userId) {
-      logger.error(`You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`);
-      throw Forbidden('You do not have permission to use this chat');
+    if (ctx.userRole !== UserRole.Admin) {
+      const access = await getChatAccess(input.chatId, ctx.userId);
+      if (!access || access === 'Viewer') {
+        logger.error(`You do not have permission to use this chat: userId: ${ctx.userId}, chatId: ${chat.id}`);
+        throw Forbidden('You do not have permission to use this chat');
+      }
     }
 
     // this will throw an error if the message does not exist

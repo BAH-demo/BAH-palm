@@ -6,10 +6,28 @@ services:
       context: .
       target: dev
     #restart: always
-    command: yarn dev:docker
-    env_file: ./.env.local
+    entrypoint: ["sh", "/app/docker/dev-entrypoint.sh"]
+    command: ["yarn", "dev:docker"]
+    env_file:
+      - path: ./.env.local
+        required: false
     environment:
       - NODE_ENV=development
+      # Defaults for zero-config startup — override via .env.local
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/postgres}
+      - MIGRATION_DATABASE_URL=${MIGRATION_DATABASE_URL:-postgresql://postgres:postgres@db:5432/postgres}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-secret-please-change-in-production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - ENABLED_NEXTAUTH_PROVIDERS=${ENABLED_NEXTAUTH_PROVIDERS:-credentials}
+      - ENABLE_SECURE_COOKIES=${ENABLE_SECURE_COOKIES:-false}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - FEATURE_FLAG_PREFIX=${FEATURE_FLAG_PREFIX:-Feature_}
+      - Feature_PALM_KB=${Feature_PALM_KB:-false}
+      - Feature_DEEP_RESEARCH=${Feature_DEEP_RESEARCH:-false}
     networks:
       - palm-net
     volumes:
@@ -20,13 +38,17 @@ services:
       - 3000:3000
       - 5555:5555
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
   keycloak:
     container_name: keycloak
     hostname: keycloak
     image: quay.io/keycloak/keycloak:18.0.2
-    env_file: ./.env.local
+    env_file:
+      - path: ./.env.local
+        required: false
     environment:
       - NODE_ENV=development
       - KEYCLOAK_ADMIN=admin
@@ -37,7 +59,10 @@ services:
     ports:
       - 8080:8080
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    profiles:
+      - keycloak
   db:
     container_name: db
     hostname: db
@@ -47,14 +72,28 @@ services:
       - 5432:5432
     networks:
       - palm-net
-    env_file: ./.env.local
+    env_file:
+      - path: ./.env.local
+        required: false
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
     volumes:
       - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
   kb:
     hostname: kb
     build:
       context: ./docker/kb
-    env_file: ./.env.local
+    env_file:
+      - path: ./.env.local
+        required: false
     networks:
       - palm-net
     ports:

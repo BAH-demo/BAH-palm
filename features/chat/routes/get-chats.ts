@@ -13,6 +13,8 @@ const outputSchema = z.object({
       summary: z.string().nullable(),
       createdAt: z.date(),
       updatedAt: z.date(),
+      isCollaborative: z.boolean(),
+      userRole: z.string(),
     })
   ),
 });
@@ -29,6 +31,8 @@ export default procedure.output(outputSchema).query(async ({ ctx }) => {
       summary: chat.summary,
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt,
+      isCollaborative: chat.isCollaborative,
+      userRole: chat.userRole,
     })),
   };
 
